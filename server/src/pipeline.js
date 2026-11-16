@@ -4,66 +4,95 @@ import os from 'os';
 import { generateText } from './llm.js';
 import { readDb, writeDb, uid } from './storage.js';
 
+const DOMAIN = 'Kecantikan dan Perawatan Kulit';
+
 const stageDefs = [
   {
     key: 'riset',
     division: 'Divisi Riset & Strategi',
     title: 'Riset & Strategi',
-    goal: 'Hasilkan riset tren, analisis audiens/kompetitor, pilihan angle, dan brief campaign yang jelas untuk TikTok & Shopee.',
+    goal: 'Riset tren TikTok & Shopee, temukan produk kecantikan/perawatan kulit yang viral, penjualan tinggi, dan berpotensi komisi tinggi; pilih produk/topik terbaik dan tetapkan strategi serta brief campaign.',
+    decision: 'Manager memutuskan 1 produk + 1 angle/topik utama yang paling layak dieksekusi beserta alasannya.',
   },
   {
     key: 'konten',
     division: 'Divisi Konten & Produksi',
     title: 'Konten & Produksi',
-    goal: 'Berdasarkan riset & brief, hasilkan konsep video, skrip (hook-alur-CTA), caption, hashtag, dan shot list yang siap diproduksi (tanpa menghasilkan file video).',
+    goal: 'Berdasarkan keputusan riset, susun konsep video, skrip (hook-alur-CTA), caption, hashtag, dan shot list yang siap diproduksi (tanpa menghasilkan file video).',
+    decision: 'Manager memutuskan konsep dan skrip final yang akan dipakai.',
   },
   {
     key: 'desain',
     division: 'Divisi Desain & Brand',
     title: 'Desain & Brand',
-    goal: 'Berdasarkan konten, hasilkan brief visual: ide thumbnail/cover, teks on-screen, gaya warna, elemen brand, dan panduan aset pendukung.',
+    goal: 'Berdasarkan konten final, susun brief visual: ide thumbnail/cover, teks on-screen, gaya warna, elemen brand, dan panduan aset pendukung.',
+    decision: 'Manager memutuskan arah visual & thumbnail utama yang dipakai.',
   },
   {
     key: 'distribusi',
     division: 'Divisi Sosmed & Penjualan',
     title: 'Distribusi & Penjualan',
     goal: 'Rakit Paket Siap Upload final: judul, caption & hashtag final, CTA/link placement, rencana posting TikTok, serta rencana balas komentar/DM dan follow-up leads ke Shopee.',
+    decision: 'Manager memutuskan paket final dan rencana distribusi yang dinyatakan SIAP diajukan untuk persetujuan upload.',
   },
 ];
 
 function systemPrompt() {
-  return 'Kamu adalah tim AI operasional affiliate marketing. Jawab SELALU dalam Bahasa Indonesia yang energik, positif, percaya diri, dan profesional. Output harus konkret, terstruktur, dan siap dieksekusi. Jangan menghasilkan file video; fokus pada materi/paket kerja tertulis.';
+  return 'Kamu adalah tim AI operasional affiliate marketing profesional. Jawab SELALU dalam Bahasa Indonesia yang energik, positif, percaya diri, dan terstruktur. Setiap divisi punya manager yang mengambil keputusan. Output harus konkret, actionable, dan siap dieksekusi. Jangan menghasilkan file video; fokus pada materi/paket kerja tertulis. Tanpa akses data real-time, lakukan riset berbasis pengetahuan pasar, tren umum, dan logika komersial yang kuat, serta sebutkan asumsi seperlunya.';
+}
+
+function getManager(members = []) {
+  return members.find((m) => /lead|manager|head/i.test(m.role || '')) || members[0] || { name: 'Manager', role: 'Manager' };
 }
 
 function buildStagePrompt(stage, ctx) {
-  const prev = ctx.previous.map((p) => `### Output ${p.title} (${p.division})\n${p.output}`).join('\n\n') || '(Belum ada output sebelumnya, ini tahap awal.)';
+  const prev = ctx.previous.map((p) => `### Output ${p.title} (${p.division})\n**Keputusan Manager:** ${p.managerDecision || '-'}\n\n${p.output}`).join('\n\n') || '(Tahap awal — belum ada output sebelumnya.)';
   const workers = ctx.members.map((m) => `- ${m.name} (${m.role})`).join('\n');
+  const isFirst = ctx.previous.length === 0;
+  const autoBrief = isFirst
+    ? `Tugas khusus tahap awal (OTOMATIS):\n- Domain ditetapkan: ${DOMAIN}.\n- Cari dan tentukan sendiri produk ${DOMAIN.toLowerCase()} yang berpotensi komisi tinggi, viral, dan penjualan tinggi di TikTok/Shopee.\n- Pilih 2-3 kandidat singkat lalu PUTUSKAN 1 produk/topik utama terbaik untuk dieksekusi sekarang.\n- Jika topik/produk awal dari user kosong, tim WAJIB menentukan sendiri.`
+    : `Tugas lanjutan: ikuti keputusan & brief dari tahap sebelumnya, jangan mengubah produk/angle utama kecuali manager tahap ini memberi alasan kuat dan keputusan revisi yang jelas.`;
+
   return `Kamu mengoordinasikan tim ${stage.division}.
-Anggota tim yang mengerjakan tahap ini:
+Manager Divisi (pengambil keputusan): ${ctx.manager.name} (${ctx.manager.role})
+Anggota tim:
 ${workers}
 
-Topik/Produk: ${ctx.topic || '-'} ${ctx.product ? `(Fokus: ${ctx.product})` : ''}
+Domain/Niche: ${DOMAIN}
+Input awal (opsional): Topik="${ctx.topic || ''}" Produk="${ctx.product || ''}"
 Target channel: TikTok & Shopee.
 
 Tujuan tahap "${stage.title}": ${stage.goal}
+Kewenangan keputusan: ${stage.decision}
 
-Konteks dari tahap sebelumnya:
+${autoBrief}
+
+Konteks tahap sebelumnya:
 ${prev}
 
-Instruksi:
-- Kerjakan sebagai hasil kolaborasi tim (sebutkan kontribusi per anggota secara singkat di bagian "Kontribusi Tim").
-- Hasil harus detail, actionable, dan selaras dengan tahap sebelumnya.
-- Format wajib:
+Instruksi kerja:
+- Kerjakan sebagai kolaborasi 1 manager + anggota tim; tampilkan kontribusi tiap anggota secara singkat.
+- Manager HARUS membuat keputusan tegas di bagian "Keputusan Manager".
+- Hasil harus detail, konkret, dan selaras antar divisi.
+- Format output WAJIB:
   1) Judul Tahap
   2) Ringkasan
   3) Kontribusi Tim (per anggota)
   4) Hasil Kerja Utama (poin/struktur jelas)
-  5) Serah Terima ke Tahap Berikutnya (atau "Siap masuk paket final" jika tahap terakhir)`;
+  5) Keputusan Manager (keputusan final + alasan singkat)
+  6) Serah Terima ke Divisi Berikutnya (atau "SIAP DIAJUKAN: Layak Upload?" jika tahap akhir)`;
+}
+
+function extractManagerDecision(text) {
+  if (!text) return '';
+  const m = text.match(/(?:^|\n)\s*(?:5\)|#+)?\s*Keputusan Manager[\s\S]*?(?=\n\s*(?:6\)|#+)\s*Serah Terima|\n\s*6\)|$)/i);
+  if (m) return m[0].replace(/^\s*(?:5\)|#+)?\s*Keputusan Manager\s*:?\s*/i, '').trim().slice(0, 800);
+  return text.slice(0, 400);
 }
 
 function buildFinalPackage(pipeline) {
-  const parts = pipeline.stages.map((s) => `## ${s.title} — ${s.division}\n**PIC Tim:** ${s.members.map(m=>m.name).join(', ')}\n\n${s.output}`).join('\n\n---\n\n');
-  return `# Paket Siap Upload\n\n**Topik:** ${pipeline.topic || '-'}\n**Fokus Produk:** ${pipeline.product || '-'}\n**Pipeline ID:** ${pipeline.id}\n**Dibuat:** ${pipeline.createdAt}\n**Status:** ${pipeline.status}\n\n${parts}\n\n---\n## Catatan Keputusan\n- Status persetujuan: ${pipeline.status}\n- Catatan: ${pipeline.reviewNote || '-'}\n- Lokasi export: ${pipeline.exportPath || '(belum diexport)'}\n`;
+  const parts = pipeline.stages.map((s) => `## ${s.title} — ${s.division}\n**Manager:** ${s.manager?.name || '-'} (${s.manager?.role || '-'})\n**Tim:** ${(s.members||[]).map(m=>m.name).join(', ')}\n\n### Keputusan Manager\n${s.managerDecision || '-'}\n\n### Hasil Kerja\n${s.output}`).join('\n\n---\n\n');
+  return `# Paket Siap Upload\n\n**Domain:** ${DOMAIN}\n**Topik:** ${pipeline.topic || '-'}\n**Fokus Produk:** ${pipeline.product || '-'}\n**Pipeline ID:** ${pipeline.id}\n**Dibuat:** ${pipeline.createdAt}\n**Status:** ${pipeline.status}\n\n${parts}\n\n---\n## Keputusan Akhir (Persetujuan Upload)\n- Status persetujuan: ${pipeline.status}\n- Catatan: ${pipeline.reviewNote || '-'}\n- Lokasi export: ${pipeline.exportPath || '(belum diexport)'}\n`;
 }
 
 function downloadsDir() {
@@ -86,10 +115,13 @@ function safeName(s) {
 export async function runPipeline({ divisions, topic, product }) {
   const db = readDb();
   const id = uid('pipe');
+  const autoTopic = topic && topic.trim() ? topic.trim() : `Auto: Produk ${DOMAIN} komisi tinggi & viral`;
+  const autoProduct = product && product.trim() ? product.trim() : DOMAIN;
   const pipeline = {
     id,
-    topic: topic || '',
-    product: product || '',
+    domain: DOMAIN,
+    topic: autoTopic,
+    product: autoProduct,
     status: 'running',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -98,12 +130,13 @@ export async function runPipeline({ divisions, topic, product }) {
     exportPath: null,
   };
   db.pipelines.unshift(pipeline);
-  db.logs.unshift({ id: uid('log'), at: pipeline.createdAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Pipeline ${id} dimulai: "${topic || 'tanpa topik'}"` });
+  db.logs.unshift({ id: uid('log'), at: pipeline.createdAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Pipeline ${id} dimulai (otomatis): ${DOMAIN} — mencari produk/topik komisi tinggi & viral` });
   writeDb(db);
 
   const previous = [];
   for (const def of stageDefs) {
     const div = divisions.find((d) => d.name === def.division) || divisions[0];
+    const manager = getManager(div.members || []);
     const stage = {
       key: def.key,
       title: def.title,
@@ -111,32 +144,35 @@ export async function runPipeline({ divisions, topic, product }) {
       divisionId: div.id,
       divisionColor: div.color,
       members: div.members || [],
+      manager,
       status: 'running',
       output: '',
+      managerDecision: '',
       startedAt: new Date().toISOString(),
       finishedAt: null,
       error: null,
     };
     pipeline.stages.push(stage);
-    db.logs.unshift({ id: uid('log'), at: stage.startedAt, level: 'info', agent: (div.members[0]||{}).name || 'Tim', division: def.division, message: `mengerjakan tahap ${def.title}` });
+    db.logs.unshift({ id: uid('log'), at: stage.startedAt, level: 'info', agent: manager.name, division: def.division, message: `Manager memimpin tahap ${def.title}` });
     writeDb(db);
     try {
       const output = await generateText({
         system: systemPrompt(),
-        prompt: buildStagePrompt(def, { previous, members: div.members || [], topic, product }),
+        prompt: buildStagePrompt(def, { previous, members: div.members || [], manager, topic: autoTopic, product: autoProduct }),
       });
       stage.output = output;
+      stage.managerDecision = extractManagerDecision(output);
       stage.status = 'done';
       stage.finishedAt = new Date().toISOString();
-      previous.push({ title: def.title, division: def.division, output });
-      db.logs.unshift({ id: uid('log'), at: stage.finishedAt, level: 'info', agent: (div.members[0]||{}).name || 'Tim', division: def.division, message: `tahap ${def.title} selesai` });
+      previous.push({ title: def.title, division: def.division, output, managerDecision: stage.managerDecision });
+      db.logs.unshift({ id: uid('log'), at: stage.finishedAt, level: 'info', agent: manager.name, division: def.division, message: `keputusan & hasil tahap ${def.title} selesai` });
     } catch (err) {
       stage.status = 'error';
       stage.error = err.message;
       stage.finishedAt = new Date().toISOString();
       pipeline.status = 'error';
       pipeline.updatedAt = stage.finishedAt;
-      db.logs.unshift({ id: uid('log'), at: stage.finishedAt, level: 'error', agent: (div.members[0]||{}).name || 'Tim', division: def.division, message: `tahap ${def.title} gagal: ${err.message}` });
+      db.logs.unshift({ id: uid('log'), at: stage.finishedAt, level: 'error', agent: manager.name, division: def.division, message: `tahap ${def.title} terhenti: ${err.message}` });
       writeDb(db);
       return pipeline;
     }
@@ -147,7 +183,7 @@ export async function runPipeline({ divisions, topic, product }) {
   pipeline.status = 'waiting_approval';
   pipeline.finalPackage = buildFinalPackage(pipeline);
   pipeline.updatedAt = new Date().toISOString();
-  db.logs.unshift({ id: uid('log'), at: pipeline.updatedAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Pipeline ${id} selesai dan menunggu keputusan: Layak Upload?` });
+  db.logs.unshift({ id: uid('log'), at: pipeline.updatedAt, level: 'info', agent: 'Naya', division: 'Divisi Sosmed & Penjualan', message: `Paket siap upload diajukan. Menunggu keputusan kamu: Layak Upload?` });
   db.pipelines = db.pipelines.slice(0, 50);
   writeDb(db);
   return pipeline;
@@ -181,7 +217,7 @@ export function approvePipeline(id, note) {
   p.exportPath = mdPath;
   p.exportJsonPath = jsonPath;
   p.updatedAt = new Date().toISOString();
-  db.logs.unshift({ id: uid('log'), at: p.updatedAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Pipeline ${id} disetujui dan diexport ke: ${mdPath}` });
+  db.logs.unshift({ id: uid('log'), at: p.updatedAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Paket disetujui & disimpan ke: ${mdPath}` });
   writeDb(db);
   return p;
 }
@@ -193,7 +229,7 @@ export function rejectPipeline(id, note) {
   p.status = 'rejected';
   p.reviewNote = note || 'Ditolak - perlu revisi';
   p.updatedAt = new Date().toISOString();
-  db.logs.unshift({ id: uid('log'), at: p.updatedAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Pipeline ${id} ditolak: ${p.reviewNote}` });
+  db.logs.unshift({ id: uid('log'), at: p.updatedAt, level: 'info', agent: 'Sistem', division: 'Operasional', message: `Paket ditolak: ${p.reviewNote}` });
   writeDb(db);
   return p;
 }
