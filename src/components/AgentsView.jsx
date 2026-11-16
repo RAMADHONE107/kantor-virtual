@@ -15,8 +15,8 @@ export default function AgentsView({ backend, drafts, logs, onRun, onApprove, on
       <div className="page-header">
         <div>
           <div className="eyebrow">Phase A — Agen Nyata (LLM)</div>
-          <h1>Agen & Draft Operasional</h1>
-          <p className="muted">Jalankan agen per divisi untuk menghasilkan riset, skrip, brief, dan rencana distribusi (Bahasa Indonesia, gaya energik). Draft butuh persetujuan sebelum dieksekusi.</p>
+          <h1>Agen AI & Draft Operasional</h1>
+          <p className="muted">Aktifkan agen di setiap divisi untuk menghasilkan riset, skrip, brief desain, dan rencana distribusi secara nyata dalam Bahasa Indonesia yang energik dan profesional. Setiap draft melalui persetujuan sebelum dieksekusi.</p>
         </div>
         <div>
           <span className={`pill ${backend.ok ? 'live' : ''}`}>{backend.ok ? `Backend aktif (${backend.llmProvider}${backend.hasKey ? ', API key siap' : ', API key belum diisi'})` : 'Backend offline'}</span>
@@ -87,7 +87,7 @@ export default function AgentsView({ backend, drafts, logs, onRun, onApprove, on
 
       <section className="card soft">
         <h2 style={{ marginBottom: 6 }}>Roadmap Integrasi (D)</h2>
-        <p className="muted"><strong>Phase A (aktif):</strong> agen LLM menghasilkan draft nyata (riset, skrip, brief, rencana distribusi) dengan approval. <strong>Phase B (berikutnya):</strong> integrasi TikTok untuk publish/jadwal & tarik interaksi. <strong>Phase C:</strong> integrasi Shopee & tracking leads/komisi. Dibutuhkan API key & kredensial platform resmi untuk B/C.</p>
+        <p className="muted"><strong>Phase A (aktif):</strong> agen LLM menghasilkan draft operasional nyata dengan alur persetujuan. <strong>Phase B:</strong> integrasi eksekusi & penjadwalan konten di TikTok. <strong>Phase C:</strong> integrasi Shopee untuk leads, penjualan, dan tracking komisi secara end-to-end. <em>Butuh kredensial/API resmi platform untuk aktivasi B & C.</em></p>
       </section>
     </div>
   );

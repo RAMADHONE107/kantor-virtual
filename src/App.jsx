@@ -191,7 +191,7 @@ export default function App() {
           <div className="brand-mark">AS</div>
           <div>
             <div className="brand-title">Affiliate Studio AI</div>
-            <div className="brand-sub">4 divisi · 16 pekerja · agen AI (Phase A)</div>
+            <div className="brand-sub">4 Divisi · 16 Pekerja AI · Operasional Cerdas</div>
           </div>
         </div>
         <nav className="nav">
@@ -217,7 +217,7 @@ export default function App() {
             <div ref={officeRef} className="office-canvas" />
             <div className="office-overlay">
               <button className="btn" onClick={() => setView('dashboard')}>← Kembali ke Dashboard</button>
-              <div className="office-note">Kantor virtual 4 divisi (16 pekerja) — drag untuk orbit, scroll untuk zoom</div>
+              <div className="office-note">Kantor Virtual Interaktif · 4 Divisi, 16 Pekerja — drag untuk orbit, scroll untuk zoom</div>
             </div>
           </div>
         )}
