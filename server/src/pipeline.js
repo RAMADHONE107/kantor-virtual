@@ -46,7 +46,11 @@ function getManager(members = []) {
 }
 
 function buildStagePrompt(stage, ctx) {
-  const prev = ctx.previous.map((p) => `### Output ${p.title} (${p.division})\n**Keputusan Manager:** ${p.managerDecision || '-'}\n\n${p.output}`).join('\n\n') || '(Tahap awal — belum ada output sebelumnya.)';
+  const prev = ctx.previous.map((p) => {
+    const out = (p.output || '');
+    const trimmed = out.length > 2200 ? out.slice(0, 2200) + '\n...[diringkas]' : out;
+    return `### Output ${p.title} (${p.division})\n**Keputusan Manager:** ${(p.managerDecision || '-').slice(0, 700)}\n\n${trimmed}`;
+  }).join('\n\n') || '(Tahap awal — belum ada output sebelumnya.)';
   const workers = ctx.members.map((m) => `- ${m.name} (${m.role})`).join('\n');
   const isFirst = ctx.previous.length === 0;
   const autoBrief = isFirst
