@@ -9,16 +9,21 @@ const dbPath = path.join(dataDir, 'db.json');
 function ensure() {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({ drafts: [], runs: [], logs: [] }, null, 2));
+    fs.writeFileSync(dbPath, JSON.stringify({ drafts: [], runs: [], logs: [], pipelines: [] }, null, 2));
   }
 }
 
 export function readDb() {
   ensure();
   try {
-    return JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    if (!db.drafts) db.drafts = [];
+    if (!db.runs) db.runs = [];
+    if (!db.logs) db.logs = [];
+    if (!db.pipelines) db.pipelines = [];
+    return db;
   } catch {
-    return { drafts: [], runs: [], logs: [] };
+    return { drafts: [], runs: [], logs: [], pipelines: [] };
   }
 }
 

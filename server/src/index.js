@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { runAgentsOnce, listDrafts, updateDraftStatus, listLogs } from './agents.js';
+import { runPipeline, listPipelines, getPipeline, approvePipeline, rejectPipeline } from './pipeline.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -52,6 +53,47 @@ app.post('/api/drafts/:id/reject', (req, res) => {
   const draft = updateDraftStatus(req.params.id, 'rejected');
   if (!draft) return res.status(404).json({ ok: false, error: 'Draft tidak ditemukan' });
   res.json({ ok: true, draft, drafts: listDrafts() });
+});
+
+app.get('/api/pipelines', (req, res) => {
+  res.json({ pipelines: listPipelines() });
+});
+
+app.get('/api/pipelines/:id', (req, res) => {
+  const pipeline = getPipeline(req.params.id);
+  if (!pipeline) return res.status(404).json({ ok: false, error: 'Pipeline tidak ditemukan' });
+  res.json({ ok: true, pipeline });
+});
+
+app.post('/api/pipelines/run', async (req, res) => {
+  try {
+    const { topic, product, divisions } = req.body || {};
+    const divs = Array.isArray(divisions) && divisions.length ? divisions : divisionsDefault;
+    const pipeline = await runPipeline({ divisions: divs, topic, product });
+    res.json({ ok: true, pipeline, pipelines: listPipelines() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pipelines/:id/approve', (req, res) => {
+  try {
+    const pipeline = approvePipeline(req.params.id, req.body?.note);
+    if (!pipeline) return res.status(404).json({ ok: false, error: 'Pipeline tidak ditemukan' });
+    res.json({ ok: true, pipeline, pipelines: listPipelines() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pipelines/:id/reject', (req, res) => {
+  try {
+    const pipeline = rejectPipeline(req.params.id, req.body?.note);
+    if (!pipeline) return res.status(404).json({ ok: false, error: 'Pipeline tidak ditemukan' });
+    res.json({ ok: true, pipeline, pipelines: listPipelines() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // Optional: serve built frontend in production

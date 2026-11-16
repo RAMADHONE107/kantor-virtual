@@ -74,7 +74,9 @@ export default function App() {
   const [backend, setBackend] = useState({ ok: false, hasKey: false, llmProvider: 'groq' });
   const [drafts, setDrafts] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
   const [running, setRunning] = useState(false);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
   const officeRef = useRef(null);
   const sceneRef = useRef(null);
 
@@ -86,6 +88,8 @@ export default function App() {
       setDrafts(d.drafts || []);
       const l = await api.logs();
       setLogs(l.logs || []);
+      const p = await api.pipelines();
+      setPipelines(p.pipelines || []);
     } catch {
       setBackend((b) => ({ ...b, ok: false }));
     }
@@ -184,6 +188,38 @@ export default function App() {
     try { const res = await api.rejectDraft(id); setDrafts(res.drafts || drafts.map(d => d.id === id ? { ...d, status: 'rejected' } : d)); loadBackend(); } catch (e) { alert(e.message); }
   };
 
+  const runPipeline = async (payload) => {
+    setPipelineRunning(true);
+    try {
+      const res = await api.runPipeline({ ...payload, divisions });
+      setPipelines(res.pipelines || (res.pipeline ? [res.pipeline, ...pipelines] : pipelines));
+      const l = await api.logs();
+      setLogs(l.logs || []);
+    } catch (e) {
+      alert(`Gagal menjalankan alur kerja: ${e.message}`);
+    } finally {
+      setPipelineRunning(false);
+      loadBackend();
+    }
+  };
+
+  const approvePipeline = async (id) => {
+    try {
+      const res = await api.approvePipeline(id, 'Layak upload - disetujui');
+      setPipelines(res.pipelines || pipelines.map(p => p.id === id ? res.pipeline : p));
+      if (res.pipeline?.exportPath) alert(`Paket disetujui dan disimpan ke:\n${res.pipeline.exportPath}`);
+      loadBackend();
+    } catch (e) { alert(e.message); }
+  };
+
+  const rejectPipeline = async (id) => {
+    try {
+      const res = await api.rejectPipeline(id, 'Perlu revisi / tidak layak upload');
+      setPipelines(res.pipelines || pipelines.map(p => p.id === id ? res.pipeline : p));
+      loadBackend();
+    } catch (e) { alert(e.message); }
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -208,7 +244,20 @@ export default function App() {
           <Dashboard metrics={metrics} activeDivisionCount={activeDivisionCount} activities={activities} tasks={tasks} onEnterOffice={() => setView('office')} />
         )}
         {view === 'agents' && (
-          <AgentsView backend={backend} drafts={drafts} logs={logs} onRun={runAgents} onApprove={approveDraft} onReject={rejectDraft} running={running} />
+          <AgentsView
+            backend={backend}
+            drafts={drafts}
+            logs={logs}
+            pipelines={pipelines}
+            onRun={runAgents}
+            onRunPipeline={runPipeline}
+            onApprove={approveDraft}
+            onReject={rejectDraft}
+            onApprovePipeline={approvePipeline}
+            onRejectPipeline={rejectPipeline}
+            running={running}
+            pipelineRunning={pipelineRunning}
+          />
         )}
         {view === 'workflow' && <WorkflowView tasks={tasks} />}
         {view === 'sales' && <SalesSocialView posts={posts} leads={leads} sales={sales} />}

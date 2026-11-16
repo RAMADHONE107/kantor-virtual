@@ -15,7 +15,11 @@ export const api = {
   health: () => req('/api/health'),
   drafts: () => req('/api/drafts'),
   logs: () => req('/api/logs'),
+  pipelines: () => req('/api/pipelines'),
   runAgents: (payload) => req('/api/agents/run', { method: 'POST', body: JSON.stringify(payload || {}) }),
+  runPipeline: (payload) => req('/api/pipelines/run', { method: 'POST', body: JSON.stringify(payload || {}) }),
   approveDraft: (id) => req(`/api/drafts/${id}/approve`, { method: 'POST' }),
   rejectDraft: (id) => req(`/api/drafts/${id}/reject`, { method: 'POST' }),
+  approvePipeline: (id, note) => req(`/api/pipelines/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+  rejectPipeline: (id, note) => req(`/api/pipelines/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
 };

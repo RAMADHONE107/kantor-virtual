@@ -1,116 +1,179 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
-function StatusPill({ status }) {
+function StatusBadge({ status }) {
   const map = {
-    draft: ['Menunggu Persetujuan', 'status-queue'],
-    approved: ['Disetujui', 'status-done'],
-    rejected: ['Ditolak', 'status-progress'],
+    running: ['Sedang Dikerjakan', 'status-progress'],
+    waiting_approval: ['Menunggu Keputusan Upload', 'status-queue'],
+    approved_exported: ['Disetujui & Disimpan', 'status-done'],
+    rejected: ['Perlu Revisi', 'status-progress'],
+    error: ['Terhenti', 'status-progress'],
+    done: ['Selesai', 'status-done'],
   };
   const [label, cls] = map[status] || [status, 'status-queue'];
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 
-export default function AgentsView({ backend, drafts, logs, onRun, onApprove, onReject, running }) {
+function StageState({ status }) {
+  if (status === 'done') return <span className="pill" style={{ color: '#15803d', borderColor: '#bbf7d0', background: '#ecfdf3' }}>Selesai</span>;
+  if (status === 'running') return <span className="pill" style={{ color: '#1d4ed8', borderColor: '#bfdbfe', background: '#eff6ff' }}>Dikerjakan</span>;
+  if (status === 'error') return <span className="pill" style={{ color: '#b91c1c', borderColor: '#fecaca', background: '#fef2f2' }}>Kendala</span>;
+  return <span className="pill">Menunggu</span>;
+}
+
+export default function AgentsView({ backend, logs, pipelines = [], onRunPipeline, onApprovePipeline, onRejectPipeline, pipelineRunning }) {
   const [topic, setTopic] = useState('');
   const [product, setProduct] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
 
   const ready = backend.ok && backend.hasKey;
-  const statusLabel = ready ? 'Agen Siap Bekerja' : backend.ok ? 'Agen Perlu Aktivasi' : 'Agen Tidak Terhubung';
+  const latest = pipelines[0] || null;
+  const selected = pipelines.find(p => p.id === selectedId) || latest;
+  const statusLabel = ready ? 'Sistem Agen Siap' : 'Sistem Agen Belum Siap';
   const statusClass = ready ? 'pill live' : 'pill';
+
+  const stats = useMemo(() => {
+    const waiting = pipelines.filter(p => p.status === 'waiting_approval').length;
+    const approved = pipelines.filter(p => p.status === 'approved_exported').length;
+    return { total: pipelines.length, waiting, approved };
+  }, [pipelines]);
 
   return (
     <div className="page">
       <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 40%, #4f46e5 75%, #0891b2 100%)',
-          padding: '26px 24px', color: '#fff', position: 'relative'
-        }}>
-          <div style={{ position: 'absolute', right: -40, top: -40, width: 220, height: 220, background: 'radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%)' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', position: 'relative', zIndex: 1, flexWrap: 'wrap' }}>
-            <div style={{ maxWidth: 700 }}>
-              <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.75)' }}>AI Operations Center</div>
-              <h1 style={{ color: '#fff', marginBottom: 8 }}>Pusat Kendali Agen AI</h1>
-              <p style={{ color: 'rgba(255,255,255,0.85)', maxWidth: 720 }}>
-                Aktifkan 4 divisi untuk menghasilkan riset, skrip konten, brief desain, dan rencana distribusi secara nyata.
-                Setiap hasil ditinjau lebih dulu agar tetap rapi, terarah, dan siap dieksekusi.
+        <div style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1e3a8a 45%, #4f46e5 75%, #0891b2 100%)', padding: '26px 24px', color: '#fff', position: 'relative' }}>
+          <div style={{ position: 'absolute', right: -30, top: -40, width: 260, height: 260, background: 'radial-gradient(circle, rgba(255,255,255,0.16), transparent 70%)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: 760 }}>
+              <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.75)' }}>Autopilot Pipeline</div>
+              <h1 style={{ color: '#fff', marginBottom: 8 }}>16 Pekerja AI Menjalankan Alur Kerja Nyata</h1>
+              <p style={{ color: 'rgba(255,255,255,0.88)', maxWidth: 760 }}>
+                Tim riset, konten, desain, hingga distribusi bekerja berantai secara otomatis dari awal sampai paket siap upload.
+                Kamu cukup mengambil keputusan di satu titik: <strong>Layak Upload atau Tidak</strong>.
               </p>
             </div>
-            <span className={statusClass} style={{ background: ready ? undefined : 'rgba(255,255,255,0.9)' }}>{statusLabel}</span>
+            <span className={statusClass} style={{ background: ready ? undefined : 'rgba(255,255,255,0.92)' }}>{statusLabel}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginTop: 18, position: 'relative', zIndex: 1 }}>
-            <MiniStat label="Divisi Aktif" value="4" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 10, marginTop: 18, position: 'relative', zIndex: 1 }}>
             <MiniStat label="Pekerja AI" value="16" />
-            <MiniStat label="Draft Tersedia" value={drafts.length} />
-            <MiniStat label="Disetujui" value={drafts.filter(d => d.status === 'approved').length} />
+            <MiniStat label="Divisi Terlibat" value="4" />
+            <MiniStat label="Menunggu Keputusan" value={stats.waiting} />
+            <MiniStat label="Paket Disetujui" value={stats.approved} />
           </div>
         </div>
 
         <div style={{ padding: 18 }}>
-          <div className="card-head" style={{ marginBottom: 10 }}><h2>Jalankan Siklus Kerja Agen</h2></div>
+          <div className="card-head" style={{ marginBottom: 10 }}><h2>Mulai Alur Kerja Otomatis</h2></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
             <div>
-              <div className="stat-label" style={{ marginBottom: 6 }}>Topik / Tujuan Campaign</div>
-              <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Contoh: Promo produk viral untuk TikTok & Shopee" style={inputStyle} />
+              <div className="stat-label" style={{ marginBottom: 6 }}>Topik / Ide Konten</div>
+              <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Contoh: Review lampu LED konten untuk pemula" style={inputStyle} />
             </div>
             <div>
               <div className="stat-label" style={{ marginBottom: 6 }}>Fokus Produk (Opsional)</div>
-              <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Contoh: Lampu LED konten, mic wireless, ring light" style={inputStyle} />
+              <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Contoh: Lampu LED meja, ring light mini" style={inputStyle} />
             </div>
             <div>
-              <button className="btn primary" onClick={() => onRun({ topic, product })} disabled={running || !ready} style={{ minWidth: 210 }}>
-                {running ? 'Agen Sedang Bekerja...' : 'Jalankan Agen (4 Divisi)'}
+              <button className="btn primary" onClick={() => onRunPipeline({ topic, product })} disabled={pipelineRunning || !ready} style={{ minWidth: 230 }}>
+                {pipelineRunning ? 'Tim Sedang Bekerja...' : 'Mulai Kerja Otomatis (16 Pekerja)'}
               </button>
             </div>
           </div>
           {!ready && (
             <div className="card soft" style={{ marginTop: 12, boxShadow: 'none' }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Layanan agen belum siap</div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                Pastikan layanan agen sudah aktif dan siap digunakan agar sistem dapat menghasilkan draft operasional secara otomatis.
-              </div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Sistem agen belum siap</div>
+              <div className="muted" style={{ fontSize: 13 }}>Aktifkan layanan agen agar tim dapat menjalankan alur kerja otomatis dari riset hingga paket siap upload.</div>
             </div>
           )}
         </div>
       </section>
 
-      <div className="grid two">
-        <section className="card">
-          <div className="card-head"><h2>Draft Hasil Kerja Agen</h2><span className="pill">{drafts.length} draft</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 560, overflow: 'auto', paddingRight: 4 }}>
-            {drafts.length === 0 && (
-              <div className="card soft" style={{ boxShadow: 'none', textAlign: 'center', padding: 24 }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Belum ada draft</div>
-                <div className="muted">Jalankan agen untuk menghasilkan ide, riset, dan materi kerja nyata dari setiap divisi.</div>
-              </div>
-            )}
-            {drafts.map((d) => (
-              <div key={d.id} className="card soft" style={{ boxShadow: 'none' }}>
+      {selected ? (
+        <section className="card" style={{ borderColor: selected.status === 'waiting_approval' ? '#93c5fd' : undefined }}>
+          <div className="card-head">
+            <div>
+              <h2>Paket Kerja: {selected.topic || selected.product || 'Campaign Affiliate'}</h2>
+              <div className="muted" style={{ fontSize: 13 }}>ID: {selected.id} · Diperbarui: {new Date(selected.updatedAt || selected.createdAt).toLocaleString('id-ID')}</div>
+            </div>
+            <StatusBadge status={selected.status} />
+          </div>
+
+          <div className="grid two" style={{ marginBottom: 12 }}>
+            {selected.stages.map((s) => (
+              <div key={s.key} className="card soft" style={{ boxShadow: 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{d.title}</div>
-                    <div className="division-meta"><span className="dot" style={{ background: d.divisionColor, marginRight: 6, verticalAlign: 'middle' }} />{d.agent} · {d.role} · {d.division}</div>
+                    <div style={{ fontWeight: 700 }}>{s.title}</div>
+                    <div className="division-meta"><span className="dot" style={{ background: s.divisionColor, marginRight: 6, verticalAlign: 'middle' }} />{s.division}</div>
                   </div>
-                  <StatusPill status={d.status} />
+                  <StageState status={s.status} />
                 </div>
-                <pre style={preStyle}>{d.content}</pre>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button className="btn primary" onClick={() => onApprove(d.id)} disabled={d.status === 'approved'}>Setujui Draft</button>
-                  <button className="btn" onClick={() => onReject(d.id)} disabled={d.status === 'rejected'}>Tolak</button>
+                <div className="chips" style={{ marginBottom: 8 }}>
+                  {(s.members || []).map((m) => <span key={m.name} className="chip">{m.name} · {m.role}</span>)}
                 </div>
+                {s.output ? <pre style={preStyle}>{s.output}</pre> : <div className="muted" style={{ fontSize: 13 }}>{s.status === 'running' ? 'Tim sedang mengerjakan tahap ini...' : s.error ? `Kendala: ${s.error}` : 'Menunggu giliran.'}</div>}
               </div>
+            ))}
+          </div>
+
+          {selected.status === 'waiting_approval' && (
+            <div className="card" style={{ background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)', borderColor: '#bfdbfe' }}>
+              <div className="card-head"><h2>Keputusan Kamu: Layak Upload?</h2><span className="pill">Hanya 1 persetujuan</span></div>
+              <p className="muted" style={{ marginBottom: 12 }}>
+                Seluruh tim sudah menyelesaikan riset, konten, desain, dan rencana distribusi. Jika disetujui, paket siap upload akan otomatis disimpan ke folder <strong>Download</strong> di perangkatmu.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="btn primary" onClick={() => onApprovePipeline(selected.id)}>Layak Upload — Simpan ke Download</button>
+                <button className="btn" onClick={() => onRejectPipeline(selected.id)}>Tidak Layak / Perlu Revisi</button>
+              </div>
+            </div>
+          )}
+
+          {selected.status === 'approved_exported' && (
+            <div className="card" style={{ background: '#ecfdf3', borderColor: '#bbf7d0', boxShadow: 'none' }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Paket disetujui dan otomatis disimpan</div>
+              <div className="muted" style={{ fontSize: 13, wordBreak: 'break-all' }}>Lokasi file: {selected.exportPath || '-'}</div>
+              {selected.exportJsonPath && <div className="muted" style={{ fontSize: 13, wordBreak: 'break-all' }}>Data: {selected.exportJsonPath}</div>}
+            </div>
+          )}
+
+          {selected.status === 'rejected' && (
+            <div className="card" style={{ background: '#fffbeb', borderColor: '#fde68a', boxShadow: 'none' }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Paket ditandai perlu revisi</div>
+              <div className="muted" style={{ fontSize: 13 }}>{selected.reviewNote || 'Silakan jalankan ulang alur kerja dengan arahan/topik yang diperbarui.'}</div>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="card soft" style={{ textAlign: 'center', padding: 28 }}>
+          <h2 style={{ marginBottom: 6 }}>Belum ada alur kerja berjalan</h2>
+          <p className="muted">Mulai alur kerja otomatis agar 16 pekerja AI menyiapkan paket konten sampai tahap siap upload.</p>
+        </section>
+      )}
+
+      <div className="grid two">
+        <section className="card">
+          <div className="card-head"><h2>Riwayat Paket & Keputusan</h2><span className="pill">{pipelines.length} pipeline</span></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 420, overflow: 'auto' }}>
+            {pipelines.length === 0 && <div className="muted">Belum ada riwayat.</div>}
+            {pipelines.map((p) => (
+              <button key={p.id} className="card soft" onClick={() => setSelectedId(p.id)} style={{ textAlign: 'left', cursor: 'pointer', boxShadow: 'none', borderColor: (selected && selected.id === p.id) ? '#93c5fd' : undefined }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{p.topic || p.product || 'Campaign Affiliate'}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{new Date(p.createdAt).toLocaleString('id-ID')}</div>
+                  </div>
+                  <StatusBadge status={p.status} />
+                </div>
+                {p.exportPath && <div className="muted" style={{ fontSize: 12, marginTop: 6, wordBreak: 'break-all' }}>Tersimpan: {p.exportPath}</div>}
+              </button>
             ))}
           </div>
         </section>
 
         <section className="card">
-          <div className="card-head"><h2>Aktivitas & Log Agen</h2><span className="pill live">Real-time</span></div>
-          <div className="activity-list" style={{ maxHeight: 560, overflow: 'auto' }}>
-            {logs.length === 0 && (
-              <div className="card soft" style={{ boxShadow: 'none', textAlign: 'center', padding: 24 }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Belum ada aktivitas</div>
-                <div className="muted">Log kerja agen akan tampil di sini saat proses berjalan.</div>
-              </div>
-            )}
+          <div className="card-head"><h2>Aktivitas Tim</h2><span className="pill live">Real-time</span></div>
+          <div className="activity-list" style={{ maxHeight: 420, overflow: 'auto' }}>
+            {logs.length === 0 && <div className="muted">Belum ada aktivitas.</div>}
             {logs.map((l) => (
               <div key={l.id} className="activity-item">
                 <span className="dot" style={{ background: l.level === 'error' ? '#ef4444' : '#22c55e', marginTop: 6 }} />
@@ -123,15 +186,6 @@ export default function AgentsView({ backend, drafts, logs, onRun, onApprove, on
           </div>
         </section>
       </div>
-
-      <section className="card soft">
-        <div className="card-head" style={{ marginBottom: 6 }}><h2>Alur Eksekusi Bertahap</h2></div>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-          <RoadmapItem step="Phase A" title="Draft & Persetujuan" text="Agen menghasilkan riset, konten, dan rencana kerja nyata dengan alur tinjau & setujui." active />
-          <RoadmapItem step="Phase B" title="Eksekusi TikTok" text="Penjadwalan, publikasi, dan pengelolaan interaksi konten di TikTok." />
-          <RoadmapItem step="Phase C" title="Penjualan Shopee" text="Pengelolaan leads, konversi, dan pelacakan komisi secara end-to-end." />
-        </div>
-      </section>
     </div>
   );
 }
@@ -145,15 +199,5 @@ function MiniStat({ label, value }) {
   );
 }
 
-function RoadmapItem({ step, title, text, active }) {
-  return (
-    <div className="card" style={{ boxShadow: 'none', background: active ? 'linear-gradient(135deg, #eff6ff, #eef2ff)' : '#fff', borderColor: active ? '#bfdbfe' : undefined }}>
-      <div className="pill" style={{ marginBottom: 8, display: 'inline-flex' }}>{step}{active ? ' · Aktif' : ''}</div>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
-      <div className="muted" style={{ fontSize: 13 }}>{text}</div>
-    </div>
-  );
-}
-
 const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 12, border: '1px solid #d9e2ee', background: '#fff', font: 'inherit', outline: 'none' };
-const preStyle = { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6, color: '#334155', background: '#fff', border: '1px solid #e6ebf2', borderRadius: 12, padding: 12, margin: 0, maxHeight: 240, overflow: 'auto' };
+const preStyle = { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6, color: '#334155', background: '#fff', border: '1px solid #e6ebf2', borderRadius: 12, padding: 12, margin: 0, maxHeight: 260, overflow: 'auto' };
