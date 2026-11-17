@@ -1,9 +1,17 @@
 const PROVIDERS = {
+  hermes: {
+    url: () => process.env.HERMES_BASE_URL || 'http://127.0.0.1:8642/v1/chat/completions',
+    keyEnv: 'HERMES_API_KEY',
+    modelEnv: 'HERMES_MODEL',
+    defaultModel: 'hermes-agent',
+    timeoutMs: 240000,
+  },
   groq: {
-    url: 'https://api.groq.com/openai/v1/chat/completions',
+    url: () => 'https://api.groq.com/openai/v1/chat/completions',
     keyEnv: 'GROQ_API_KEY',
     modelEnv: 'GROQ_MODEL',
     defaultModel: 'openai/gpt-oss-20b',
+    timeoutMs: 120000,
   },
 };
 
@@ -18,12 +26,13 @@ export async function generateText({ system, prompt }) {
   const model = process.env[provider.modelEnv] || provider.defaultModel;
   const maxRetries = 4;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetch(provider.url, {
+    const res = await fetch(provider.url(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(provider.timeoutMs || 120000),
       body: JSON.stringify({
         model,
         messages: [
