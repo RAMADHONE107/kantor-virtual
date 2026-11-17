@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { products } from '../data/products.js';
+import { createNavigator } from './navigation.js';
 
 export function createOfficeScene(container, callbacks = {}) {
-  const { onTimeUpdate, onStatusUpdate, onMeetingChange, onProductSelect } = callbacks;
+  const { onTimeUpdate, onStatusUpdate, onMeetingChange, onProductSelect, onActivityUpdate } = callbacks;
 
   class RNG {
     constructor(s = 42) { this.s = s; }
@@ -13,45 +14,45 @@ export function createOfficeScene(container, callbacks = {}) {
   }
   const rng = new RNG(2026);
 
-  // 4 tim, masing-masing 4 orang, 4 meja, 2 komputer per meja
+  // 4 divisi, masing-masing 4 orang, 4 meja, 2 komputer per meja
   const TEAMS = [
     {
-      name: 'Tim Alpha',
+      name: 'Alpha · Riset & Strategi',
       center: { x: -10, z: -4 },
       members: [
-        { name: 'RAKA', role: 'Riset Produk', color: 0x0deef3, hex: '#0DEEF3', hair: 0x1a1a2e, shirt: 0x0a3d5c, pants: 0x0a1628 },
-        { name: 'SINTA', role: 'Produksi Konten', color: 0xe040fb, hex: '#E040FB', hair: 0x4a148c, shirt: 0x6a1b9a, pants: 0x1a1a2e },
-        { name: 'DIMAS', role: 'Desain & Visual', color: 0x00e676, hex: '#00E676', hair: 0x222222, shirt: 0x1b5e20, pants: 0x263238 },
-        { name: 'NAYA', role: 'Growth & Analitik', color: 0xf5a623, hex: '#F5A623', hair: 0x8b4513, shirt: 0x8b6914, pants: 0x3e2723 },
+        { name: 'RAKA', role: 'Lead Riset Produk', color: 0x0deef3, hex: '#0DEEF3', hair: 0x1a1a2e, shirt: 0x0a3d5c, pants: 0x0a1628 },
+        { name: 'BIMA', role: 'Analis Pasar', color: 0x448aff, hex: '#448AFF', hair: 0x2b2b2b, shirt: 0x153e75, pants: 0x1b2430 },
+        { name: 'ANDI', role: 'Riset Kompetitor', color: 0x26c6da, hex: '#26C6DA', hair: 0x263238, shirt: 0x006064, pants: 0x102027 },
+        { name: 'FARIS', role: 'Strategi Funnel', color: 0x29b6f6, hex: '#29B6F6', hair: 0x1a237e, shirt: 0x0277bd, pants: 0x102a43 },
       ],
     },
     {
-      name: 'Tim Beta',
+      name: 'Beta · Konten & Produksi',
       center: { x: 10, z: -4 },
       members: [
-        { name: 'BIMA', role: 'Riset Pasar', color: 0x448aff, hex: '#448AFF', hair: 0x2b2b2b, shirt: 0x153e75, pants: 0x1b2430 },
-        { name: 'LINA', role: 'Copy & Script', color: 0xff6ec7, hex: '#FF6EC7', hair: 0x5a2a82, shirt: 0x7b2cbf, pants: 0x2a1b3d },
-        { name: 'REZA', role: 'Desain Konten', color: 0x7cffb2, hex: '#7CFFB2', hair: 0x1f2937, shirt: 0x166534, pants: 0x22303c },
-        { name: 'TARI', role: 'Ads & Sosmed', color: 0xffb74d, hex: '#FFB74D', hair: 0x7a4a21, shirt: 0x9a3412, pants: 0x3b2f2f },
+        { name: 'SINTA', role: 'Lead Produksi Konten', color: 0xe040fb, hex: '#E040FB', hair: 0x4a148c, shirt: 0x6a1b9a, pants: 0x1a1a2e },
+        { name: 'LINA', role: 'Copywriter & Script', color: 0xff6ec7, hex: '#FF6EC7', hair: 0x5a2a82, shirt: 0x7b2cbf, pants: 0x2a1b3d },
+        { name: 'MAYA', role: 'Video & Live Host', color: 0xba68c8, hex: '#BA68C8', hair: 0x4a148c, shirt: 0x6a1b9a, pants: 0x311b92 },
+        { name: 'KEI', role: 'Konten Edukasi', color: 0xf06292, hex: '#F06292', hair: 0x4a148c, shirt: 0xad1457, pants: 0x2d1b2e },
       ],
     },
     {
-      name: 'Tim Gamma',
+      name: 'Gamma · Desain & Brand',
       center: { x: -10, z: 10 },
       members: [
-        { name: 'ANDI', role: 'Riset Kompetitor', color: 0x26c6da, hex: '#26C6DA', hair: 0x263238, shirt: 0x006064, pants: 0x102027 },
-        { name: 'MAYA', role: 'Video & Live', color: 0xba68c8, hex: '#BA68C8', hair: 0x4a148c, shirt: 0x6a1b9a, pants: 0x311b92 },
+        { name: 'DIMAS', role: 'Lead Desain Visual', color: 0x00e676, hex: '#00E676', hair: 0x222222, shirt: 0x1b5e20, pants: 0x263238 },
+        { name: 'REZA', role: 'Desainer Konten', color: 0x7cffb2, hex: '#7CFFB2', hair: 0x1f2937, shirt: 0x166534, pants: 0x22303c },
         { name: 'GALIH', role: 'Brand Visual', color: 0x66bb6a, hex: '#66BB6A', hair: 0x1b1b1b, shirt: 0x2e7d32, pants: 0x263238 },
-        { name: 'RANI', role: 'Komunitas & CRM', color: 0xff8a65, hex: '#FF8A65', hair: 0x6d4c41, shirt: 0xb71c1c, pants: 0x3e2723 },
+        { name: 'YOGA', role: 'Motion & Asset', color: 0x9ccc65, hex: '#9CCC65', hair: 0x2e3b2f, shirt: 0x558b2f, pants: 0x263238 },
       ],
     },
     {
-      name: 'Tim Delta',
+      name: 'Delta · Sosmed & Penjualan',
       center: { x: 10, z: 10 },
       members: [
-        { name: 'FARIS', role: 'Riset Funnel', color: 0x29b6f6, hex: '#29B6F6', hair: 0x1a237e, shirt: 0x0277bd, pants: 0x102a43 },
-        { name: 'KEI', role: 'Konten Edukasi', color: 0xf06292, hex: '#F06292', hair: 0x4a148c, shirt: 0xad1457, pants: 0x2d1b2e },
-        { name: 'YOGA', role: 'Motion & Asset', color: 0x9ccc65, hex: '#9CCC65', hair: 0x2e3b2f, shirt: 0x558b2f, pants: 0x263238 },
+        { name: 'NAYA', role: 'Lead Growth & Sosmed', color: 0xf5a623, hex: '#F5A623', hair: 0x8b4513, shirt: 0x8b6914, pants: 0x3e2723 },
+        { name: 'TARI', role: 'Ads & Social Media', color: 0xffb74d, hex: '#FFB74D', hair: 0x7a4a21, shirt: 0x9a3412, pants: 0x3b2f2f },
+        { name: 'RANI', role: 'Komunitas & CRM', color: 0xff8a65, hex: '#FF8A65', hair: 0x6d4c41, shirt: 0xb71c1c, pants: 0x3e2723 },
         { name: 'VINA', role: 'Sales & Closing', color: 0xffca28, hex: '#FFCA28', hair: 0x8d6e63, shirt: 0xf57f17, pants: 0x4e342e },
       ],
     },
@@ -129,6 +130,11 @@ export function createOfficeScene(container, callbacks = {}) {
   const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.05, ...o });
   const MB = (c) => new THREE.MeshBasicMaterial({ color: c });
   const ML = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
+
+  // Nav obstacles keep workers out of desks, furniture and walls.
+  const obstacles = [];
+  const addRect = (x1, z1, x2, z2) => obstacles.push({ type: 'rect', x1, z1, x2, z2 });
+  const addCircle = (x, z, r) => obstacles.push({ type: 'circle', x, z, r });
 
   // Floor & carpet (expanded for 4 teams)
   const floor = new THREE.Mesh(new THREE.BoxGeometry(44, 0.2, 34), M(0x8b95a3, { roughness: 0.95 }));
@@ -221,6 +227,10 @@ export function createOfficeScene(container, callbacks = {}) {
   addCoffee(0, 1.8);
   addPlant(0, -12.8, 1.3); addPlant(-20.5, -12.8, 1.1); addPlant(20.5, -12.8, 1.1);
   addPlant(-20.5, 12.8, 1.1); addPlant(20.5, 12.8, 1.1);
+  addRect(-1.1, 2.65, 1.1, 3.75);
+  addRect(-0.7, 1.3, 0.7, 2.3);
+  [[0, -12.8], [-20.5, -12.8], [20.5, -12.8], [-20.5, 12.8], [20.5, 12.8]]
+    .forEach(([px, pz]) => addCircle(px, pz, 0.6));
 
   // Character builder
   function buildChar(agent, standing = false) {
@@ -310,6 +320,14 @@ export function createOfficeScene(container, callbacks = {}) {
     tTable.position.set(cx, 0.72, cz + 4.2); tTable.castShadow = true; office.add(tTable);
     [[-0.75,-0.35],[0.75,-0.35],[-0.75,0.35],[0.75,0.35]].forEach(([lx,lz])=>{const leg=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.72,0.05),M(0xaab8c5)); leg.position.set(cx+lx,0.36,cz+4.2+lz); office.add(leg);});
 
+    addRect(cx - 5.5, cz - 4.0, cx - 4.1, cz - 2.4);
+    addRect(cx + 3.7, cz - 3.6, cx + 5.9, cz - 2.5);
+    addRect(cx + 3.9, cz + 2.6, cx + 5.3, cz + 3.7);
+    addRect(cx - 5.1, cz + 2.7, cx - 4.1, cz + 3.7);
+    addCircle(cx - 4.6, cz - 0.2, 0.6);
+    addCircle(cx + 4.6, cz + 0.2, 0.6);
+    addRect(cx - 1.1, cz + 3.55, cx + 1.1, cz + 4.85);
+
     team.members.forEach((agent, idx) => {
       const dp = deskOffsets[idx];
       const ax = cx + dp.x, az = cz + dp.z;
@@ -321,6 +339,7 @@ export function createOfficeScene(container, callbacks = {}) {
       });
       const top = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.06, 0.9), ML(0xe8ecf0));
       top.position.set(ax, 0.75, az); top.castShadow = true; top.receiveShadow = true; office.add(top);
+      addRect(ax - 1.2, az - 0.55, ax + 1.2, az + 0.55);
 
       // Two monitors per desk
       const monitorOffsets = [-0.45, 0.45];
@@ -367,73 +386,149 @@ export function createOfficeScene(container, callbacks = {}) {
       const glow = new THREE.PointLight(agent.color, 0.16, 2.4, 2);
       glow.position.set(ax, 0.3, az); office.add(glow);
 
-      // Sitting + walker
+      // One figure per worker: sitting/standing share a position, so nobody
+      // teleports or disappears when a handoff starts.
+      const figure = new THREE.Group();
+      figure.position.set(ax, 0, chairZ);
       const sitting = buildChar(agent, false);
-      sitting.position.set(ax, 0, chairZ);
-      office.add(sitting);
       const walker = buildChar(agent, true);
       walker.visible = false;
-      office.add(walker);
+      const folder = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.035), M(0xf8fafc));
+      folder.position.set(0.28, 0.55, 0.12);
+      folder.visible = false;
+      walker.add(folder);
+      figure.add(sitting, walker);
+      office.add(figure);
 
       agentData.push({
-        agent, sitting, walker, label: null, glow,
+        agent, figure, sitting, walker, folder, label: null, glow,
         home: { x: ax, z: chairZ },
+        visit: { x: ax + (ax < cx ? -1.55 : 1.55), z: chairZ },
         teamCenter: { x: cx, z: cz },
-        state: 'sitting',
-        timer: 4 + rng.r(0, 10),
-        walkTarget: null,
-        walkPause: 0,
+        state: 'desk',
+        path: [],
+        pathIndex: 0,
+        pause: 0,
       });
     });
   });
 
-  // Simple walking behavior across the larger office
-  const walkDestinations = [
-    { x: 0, z: 3.0 }, { x: -8, z: 3.0 }, { x: 8, z: 3.0 },
-    { x: 0, z: -8 }, { x: -12, z: -2 }, { x: 12, z: -2 },
-    { x: -10, z: 12 }, { x: 10, z: 12 }, { x: 0, z: 12 },
+  // Work handoffs follow the dashboard flow: Riset → Konten → Desain →
+  // Distribusi → Riset. One courier at a time prevents workers from clipping
+  // into each other while the navigator keeps them out of furniture.
+  const HANDOFFS = [
+    { from: 'RAKA', to: 'BIMA', division: 'Riset & Strategi', note: 'menyerahkan daftar produk & data tren ke Bima' },
+    { from: 'BIMA', to: 'ANDI', division: 'Riset & Strategi', note: 'mengirim analisis pasar & harga ke Andi' },
+    { from: 'ANDI', to: 'FARIS', division: 'Riset & Strategi', note: 'menyerahkan profil kompetitor ke Faris' },
+    { from: 'FARIS', to: 'SINTA', division: 'Riset & Strategi', note: 'serah terima brief strategi ke produksi konten' },
+    { from: 'SINTA', to: 'LINA', division: 'Konten & Produksi', note: 'memberikan brief skrip & angle ke Lina' },
+    { from: 'LINA', to: 'MAYA', division: 'Konten & Produksi', note: 'menyerahkan skrip final ke produksi video' },
+    { from: 'MAYA', to: 'KEI', division: 'Konten & Produksi', note: 'mengirim aset video ke konten edukasi' },
+    { from: 'KEI', to: 'DIMAS', division: 'Konten & Produksi', note: 'serah terima aset konten ke desain brand' },
+    { from: 'DIMAS', to: 'REZA', division: 'Desain & Brand', note: 'memberikan brief thumbnail & cover ke Reza' },
+    { from: 'REZA', to: 'GALIH', division: 'Desain & Brand', note: 'meneruskan desain ke brand visual' },
+    { from: 'GALIH', to: 'YOGA', division: 'Desain & Brand', note: 'menyerahkan panduan brand ke motion asset' },
+    { from: 'YOGA', to: 'NAYA', division: 'Desain & Brand', note: 'serah terima aset final ke distribusi' },
+    { from: 'NAYA', to: 'TARI', division: 'Sosmed & Penjualan', note: 'memberikan jadwal posting & materi ke Tari' },
+    { from: 'TARI', to: 'RANI', division: 'Sosmed & Penjualan', note: 'meneruskan leads iklan ke komunitas' },
+    { from: 'RANI', to: 'VINA', division: 'Sosmed & Penjualan', note: 'menyerahkan leads hangat untuk closing' },
+    { from: 'VINA', to: 'RAKA', division: 'Sosmed & Penjualan', note: 'mengirim rekap penjualan untuk riset berikutnya' },
   ];
-  function updateWalkers(delta) {
-    agentData.forEach((ad) => {
-      if (ad.state === 'sitting') {
-        ad.timer -= delta;
-        if (ad.timer <= 0) {
-          ad.state = 'walking_out';
-          ad.sitting.visible = false;
-          ad.walker.visible = true;
-          ad.walker.position.set(ad.home.x, 0, ad.home.z);
-          const local = rng.n() < 0.55 && ad.teamCenter;
-          const base = local ? ad.teamCenter : rng.pick(walkDestinations);
-          ad.walkTarget = { x: base.x + rng.r(-2.2, 2.2), z: base.z + rng.r(-2.0, 2.0) };
-          ad.walkPause = 0;
-        }
-      } else if (ad.state === 'walking_out' || ad.state === 'walking_back') {
-        const target = ad.state === 'walking_out' ? ad.walkTarget : ad.home;
-        const dx = target.x - ad.walker.position.x;
-        const dz = target.z - ad.walker.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 0.2) {
-          if (ad.state === 'walking_out') {
-            ad.walkPause += delta;
-            if (ad.walkPause > 1.6 + rng.r(0, 2.2)) ad.state = 'walking_back';
-          } else {
-            ad.state = 'sitting';
-            ad.walker.visible = false;
-            ad.sitting.visible = true;
-            ad.timer = 5 + rng.r(0, 12);
-            ad.walker.children.forEach((c) => { if (c.userData && c.userData.isLeg) c.position.z = 0; });
-          }
-        } else {
-          const speed = 1.6 * delta;
-          const nx = dx / dist, nz = dz / dist;
-          ad.walker.position.x += nx * speed;
-          ad.walker.position.z += nz * speed;
-          ad.walker.rotation.y = Math.atan2(nx, nz);
-          const t = performance.now() * 0.01;
-          ad.walker.children.forEach((c) => { if (c.userData && c.userData.isLeg) c.position.z = Math.sin(t + c.userData.phase) * 0.08; });
-        }
+
+  const navigator = createNavigator({
+    minX: -20.6, maxX: 20.6, minZ: -12.7, maxZ: 13.2,
+    cell: 0.55, obstacles,
+  });
+  const agentByName = Object.fromEntries(agentData.map((ad) => [ad.agent.name, ad]));
+  let handoffIndex = 0;
+  let active = null;
+  let cooldown = 2;
+
+  function setPose(ad, walking) {
+    ad.sitting.visible = !walking;
+    ad.walker.visible = walking;
+    ad.folder.visible = walking;
+    if (!walking) {
+      ad.figure.rotation.y = 0;
+      ad.walker.children.forEach((c) => { if (c.userData && c.userData.isLeg) c.position.z = 0; });
+    }
+  }
+
+  function startNextHandoff() {
+    const step = HANDOFFS[handoffIndex % HANDOFFS.length];
+    const sender = agentByName[step.from];
+    const receiver = agentByName[step.to];
+    if (!sender || !receiver) { handoffIndex++; return; }
+    const path = navigator.findPath(sender.home, receiver.visit);
+    if (!path.length) { handoffIndex++; return; }
+    sender.state = 'to_receiver';
+    sender.path = path;
+    sender.pathIndex = 0;
+    setPose(sender, true);
+    active = { step, sender, receiver, phase: 'goto', elapsed: 0 };
+    handoffIndex++;
+    if (onActivityUpdate) onActivityUpdate({ agent: step.from, text: step.note, division: step.division });
+  }
+
+  function moveAlong(ad, delta) {
+    const target = ad.path[ad.pathIndex];
+    if (!target) return true;
+    const dx = target.x - ad.figure.position.x;
+    const dz = target.z - ad.figure.position.z;
+    const dist = Math.hypot(dx, dz);
+    const step = 2.2 * delta;
+    if (dist <= step) {
+      ad.figure.position.x = target.x;
+      ad.figure.position.z = target.z;
+      ad.pathIndex++;
+      return ad.pathIndex >= ad.path.length;
+    }
+    ad.figure.position.x += (dx / dist) * step;
+    ad.figure.position.z += (dz / dist) * step;
+    ad.figure.rotation.y = Math.atan2(dx, dz);
+    const t = performance.now() * 0.012;
+    ad.walker.children.forEach((c) => { if (c.userData && c.userData.isLeg) c.position.z = Math.sin(t + c.userData.phase) * 0.08; });
+    return false;
+  }
+
+  function updateWorkFlow(delta) {
+    if (!active) {
+      cooldown -= delta;
+      if (cooldown <= 0) startNextHandoff();
+      return;
+    }
+    const { sender, receiver } = active;
+    if (active.phase === 'goto') {
+      if (moveAlong(sender, delta)) {
+        sender.figure.rotation.y = Math.atan2(receiver.home.x - sender.figure.position.x, receiver.home.z - sender.figure.position.z);
+        active.phase = 'handover';
+        active.elapsed = 0;
       }
-    });
+    } else if (active.phase === 'handover') {
+      active.elapsed += delta;
+      const progress = Math.min(1, active.elapsed / 1.6);
+      sender.folder.position.x = 0.28 - progress * 0.16;
+      sender.folder.position.z = 0.12 + progress * 0.26;
+      if (progress >= 1) {
+        const path = navigator.findPath(sender.figure.position, sender.home);
+        if (!path.length) {
+          setPose(sender, false);
+          active = null;
+          cooldown = 1.5;
+          return;
+        }
+        sender.path = path;
+        sender.pathIndex = 0;
+        sender.folder.visible = false;
+        active.phase = 'return';
+      }
+    } else if (active.phase === 'return' && moveAlong(sender, delta)) {
+      sender.figure.position.set(sender.home.x, 0, sender.home.z);
+      sender.path = [];
+      setPose(sender, false);
+      active = null;
+      cooldown = 2.5;
+    }
   }
 
   // Raycast click for monitor products
@@ -505,7 +600,7 @@ export function createOfficeScene(container, callbacks = {}) {
     const delta = Math.min(clock.getDelta(), 0.05);
     const elapsed = clock.getElapsedTime();
     if (autoRot) { sph.theta += 0.0012; updCam(); }
-    updateWalkers(delta);
+    updateWorkFlow(delta);
     renderer.render(scene, camera);
   }
   animate();

@@ -138,7 +138,17 @@ export default function App() {
       return;
     }
     if (officeRef.current && !sceneRef.current) {
-      sceneRef.current = createOfficeScene(officeRef.current);
+      sceneRef.current = createOfficeScene(officeRef.current, {
+        onActivityUpdate: (item) => {
+          setActivities((prev) => [{
+            id: `office-${Date.now()}-${Math.random()}`,
+            agent: item.agent,
+            text: item.text,
+            division: item.division,
+            time: 'Baru saja',
+          }, ...prev].slice(0, 10));
+        },
+      });
     }
     return () => {
       if (view !== 'office' && sceneRef.current) { sceneRef.current.destroy(); sceneRef.current = null; }
