@@ -7,12 +7,13 @@ Virtual office 3D interaktif untuk konten affiliate, diadaptasi dari basis [Gaur
 - **16 meja kerja / 32 monitor** dengan 4 zona tim + fasilitas bersama
 - **Lingkungan kantor**: lantai & karpet, dinding bentuk U, jendela, pencahayaan, rak, tanaman, water cooler, area meeting/whiteboard
 - **Karakter**: duduk di meja dan berjalan di dalam kantor
-- **Interaksi**: klik monitor untuk melihat detail tim/produk + CTA (link affiliate)
+- **Interaksi**: klik monitor untuk melihat detail produk nyata + CTA (URL sumber Tokopedia)
 - **Kontrol**: drag untuk orbit, scroll untuk zoom, slider waktu, mode "LIGHTS OFF"
 
 ## Struktur penting
 - `src/scene/OfficeScene.js` — scene Three.js (layout kantor, karakter, monitor, raycast klik produk)
-- `src/data/products.js` — data 8 produk affiliate (nama, deskripsi, harga, CTA, `affiliateUrl`, tampilan layar)
+- `src/data/liveSnapshot.json` — snapshot data nyata ber-timestamp (produk, tren, pipeline, log) untuk fallback GitHub Pages
+- `server/src/marketData.js` — adapter data publik: Tokopedia (produk/harga/terjual) + Google Trends RSS (tren)
 - `src/App.jsx` — integrasi scene + UI overlay/panel produk
 - `src/components/*` — Header, Legend, Ticker, HUD, InfoPanel
 
@@ -44,14 +45,28 @@ npm run preview
 ```
 Output ada di folder `dist/`.
 
+## Data nyata (bukan dummy)
+- Dashboard mengambil metrik, progres per tahap, dan aktivitas dari backend (`server/src/dashboard.js`) yang membaca `server/data/db.json`.
+- Produk & harga & jumlah terjual diambil dari **Tokopedia public web data** (tanpa login/API key) via `server/src/marketData.js`.
+- Tren pencarian diambil dari **Google Trends RSS Indonesia**.
+- Endpoint: `GET /api/dashboard`, `GET /api/market`, `POST /api/market/refresh`.
+- Pipeline menyuntikkan snapshot pasar nyata ke prompt riset (`server/src/pipeline.js`).
+
+Perbarui snapshot data nyata yang dibundling untuk GitHub Pages (backend tidak tersedia di Pages):
+```bash
+cd server && npm run snapshot   # menulis src/data/liveSnapshot.json (ber-timestamp)
+cd .. && npm run build
+```
+Aplikasi memakai data live saat backend berjalan, dan otomatis memakai snapshot nyata (ditandai "Mode snapshot") saat backend tidak terhubung. Tidak ada angka dummy.
+
 ## Kustomisasi cepat
-1. **Produk & link affiliate**: edit `src/data/products.js` (terutama `affiliateUrl`, `name`, `description`, `price`, `cta`).
-2. **Tim/role & tampilan layar**: sesuaikan `src/data/products.js` dan konstanta `TEAM` di `src/scene/OfficeScene.js` jika ingin ubah nama/peran/warna.
+1. **Sumber produk**: `server/src/marketData.js` (keyword & parser). Link produk memakai URL asli Tokopedia dari hasil riset.
+2. **Tim/role & tampilan layar**: konstanta `TEAM` di `src/scene/OfficeScene.js`.
 3. **Layout ruangan/meja/monitor**: ubah posisi di `desks` dan elemen environment pada `src/scene/OfficeScene.js`.
 4. **Branding UI**: edit `src/components/Header.jsx`, `Legend.jsx`, `Ticker.jsx`, `InfoPanel.jsx`, dan `index.html`.
 
 ## Catatan
-- Link affiliate saat ini masih placeholder (`https://example.com/...`) — ganti dengan link milik Anda.
-- GitHub Pages hanya menyajikan UI statis; pipeline & LLM berjalan di backend lokal yang aktif.
-- Riset produk berbasis penalaran model (bukan data real-time marketplace); validasi komisi/penjualan tetap perlu dicek manual.
+- **Komisi affiliate tidak ditampilkan** karena belum ada kredensial affiliate resmi (Shopee/TikTok/network). Angka komisi tidak dikarang.
+- Post sosial, leads, dan transaksi belum terhubung ke API platform mana pun — sengaja dikosongkan, bukan diisi data simulasi.
+- GitHub Pages menyajikan UI statis + snapshot data nyata; pipeline & LLM berjalan di backend lokal yang aktif.
 - Lisensi mengikuti basis asli (MIT), lihat `LICENSE`.

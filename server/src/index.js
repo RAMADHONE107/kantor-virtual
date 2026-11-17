@@ -5,6 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { runAgentsOnce, listDrafts, updateDraftStatus, listLogs } from './agents.js';
 import { runPipeline, listPipelines, getPipeline, approvePipeline, rejectPipeline } from './pipeline.js';
+import { getDashboardData } from './dashboard.js';
+import { getMarketSnapshot } from './marketData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -30,6 +32,30 @@ app.get('/api/drafts', (req, res) => {
 
 app.get('/api/logs', (req, res) => {
   res.json({ logs: listLogs() });
+});
+
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    res.json(await getDashboardData());
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/market', async (req, res) => {
+  try {
+    res.json(await getMarketSnapshot());
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/market/refresh', async (req, res) => {
+  try {
+    res.json(await getMarketSnapshot({ force: true }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 app.post('/api/agents/run', async (req, res) => {

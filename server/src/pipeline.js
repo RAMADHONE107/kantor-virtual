@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { generateText } from './llm.js';
 import { readDb, writeDb, uid } from './storage.js';
+import { getMarketSnapshot, marketBrief } from './marketData.js';
 
 const DOMAIN = 'Kecantikan dan Perawatan Kulit';
 
@@ -38,7 +39,7 @@ const stageDefs = [
 ];
 
 function systemPrompt() {
-  return 'Kamu adalah tim AI operasional affiliate marketing profesional. Jawab SELALU dalam Bahasa Indonesia yang energik, positif, percaya diri, dan terstruktur. Setiap divisi punya manager yang mengambil keputusan. Output harus konkret, actionable, dan siap dieksekusi. Jangan menghasilkan file video; fokus pada materi/paket kerja tertulis. Tanpa akses data real-time, lakukan riset berbasis pengetahuan pasar, tren umum, dan logika komersial yang kuat, serta sebutkan asumsi seperlunya.';
+  return 'Kamu adalah tim AI operasional affiliate marketing profesional. Jawab SELALU dalam Bahasa Indonesia yang energik, positif, percaya diri, dan terstruktur. Setiap divisi punya manager yang mengambil keputusan. Output harus konkret, actionable, dan siap dieksekusi. Jangan menghasilkan file video; fokus pada materi/paket kerja tertulis. Jika data pasar nyata diberikan, gunakan data itu dan cantumkan sumbernya. DILARANG mengarang harga, jumlah penjualan, atau komisi. Jika data tidak tersedia, nyatakan dengan jujur.';
 }
 
 function getManager(members = []) {
@@ -54,7 +55,7 @@ function buildStagePrompt(stage, ctx) {
   const workers = ctx.members.map((m) => `- ${m.name} (${m.role})`).join('\n');
   const isFirst = ctx.previous.length === 0;
   const autoBrief = isFirst
-    ? `Tugas khusus tahap awal (OTOMATIS):\n- Domain ditetapkan: ${DOMAIN}.\n- Cari dan tentukan sendiri produk ${DOMAIN.toLowerCase()} yang berpotensi komisi tinggi, viral, dan penjualan tinggi di TikTok/Shopee.\n- Pilih 2-3 kandidat singkat lalu PUTUSKAN 1 produk/topik utama terbaik untuk dieksekusi sekarang.\n- Jika topik/produk awal dari user kosong, tim WAJIB menentukan sendiri.`
+    ? `Tugas khusus tahap awal (OTOMATIS):\n- Domain ditetapkan: ${DOMAIN}.\n- Berikut data pasar nyata yang harus dipakai sebagai dasar riset:\n\n${ctx.marketBrief || '(data pasar belum tersedia)'}\n\n- Pilih 2-3 kandidat dari daftar produk nyata lalu PUTUSKAN 1 produk/topik utama terbaik untuk dieksekusi sekarang.\n- Sertakan URL produk sumber dan waktu data di hasil riset.\n- Jika topik/produk awal dari user kosong, tim WAJIB menentukan sendiri dari data nyata di atas.`
     : `Tugas lanjutan: ikuti keputusan & brief dari tahap sebelumnya, jangan mengubah produk/angle utama kecuali manager tahap ini memberi alasan kuat dan keputusan revisi yang jelas.`;
 
   return `Kamu mengoordinasikan tim ${stage.division}.
@@ -106,7 +107,10 @@ function extractManagerDecision(text) {
 
 function buildFinalPackage(pipeline) {
   const parts = pipeline.stages.map((s) => `## ${s.title} — ${s.division}\n**Manager:** ${s.manager?.name || '-'} (${s.manager?.role || '-'})\n**Tim:** ${(s.members||[]).map(m=>m.name).join(', ')}\n\n### Keputusan Manager\n${s.managerDecision || '-'}\n\n### Hasil Kerja\n${s.output}`).join('\n\n---\n\n');
-  return `# Paket Siap Upload\n\n**Domain:** ${DOMAIN}\n**Topik:** ${pipeline.topic || '-'}\n**Fokus Produk:** ${pipeline.product || '-'}\n**Pipeline ID:** ${pipeline.id}\n**Dibuat:** ${pipeline.createdAt}\n**Status:** ${pipeline.status}\n\n${parts}\n\n---\n## Keputusan Akhir (Persetujuan Upload)\n- Status persetujuan: ${pipeline.status}\n- Catatan: ${pipeline.reviewNote || '-'}\n- Lokasi export: ${pipeline.exportPath || '(belum diexport)'}\n`;
+  const marketInfo = pipeline.market
+    ? `\n## Sumber Data Pasar\n- Sumber produk: ${pipeline.market.source.products}\n- Sumber tren: ${pipeline.market.source.trends}\n- Diambil: ${pipeline.market.fetchedAt}\n- Produk dianalisis: ${pipeline.market.productCount}\n- Komisi: ${pipeline.market.source.commission}\n`
+    : '\n## Sumber Data Pasar\n- Tidak tersedia.\n';
+  return `# Paket Siap Upload\n\n**Domain:** ${DOMAIN}\n**Topik:** ${pipeline.topic || '-'}\n**Fokus Produk:** ${pipeline.product || '-'}\n**Pipeline ID:** ${pipeline.id}\n**Dibuat:** ${pipeline.createdAt}\n**Status:** ${pipeline.status}\n${marketInfo}\n${parts}\n\n---\n## Keputusan Akhir (Persetujuan Upload)\n- Status persetujuan: ${pipeline.status}\n- Catatan: ${pipeline.reviewNote || '-'}\n- Lokasi export: ${pipeline.exportPath || '(belum diexport)'}\n`;
 }
 
 function downloadsDir() {
@@ -129,13 +133,24 @@ function safeName(s) {
 export async function runPipeline({ divisions, topic, product }) {
   const db = readDb();
   const id = uid('pipe');
-  const autoTopic = topic && topic.trim() ? topic.trim() : `Auto: Produk ${DOMAIN} komisi tinggi & viral`;
+  const autoTopic = topic && topic.trim() ? topic.trim() : `Auto: Produk ${DOMAIN} dari data pasar nyata`;
   const autoProduct = product && product.trim() ? product.trim() : DOMAIN;
+  let marketSnapshot = null;
+  try { marketSnapshot = await getMarketSnapshot(); } catch { /* pipeline tetap jalan tanpa data */ }
+  const marketBriefText = marketBrief(marketSnapshot);
   const pipeline = {
     id,
     domain: DOMAIN,
     topic: autoTopic,
     product: autoProduct,
+    market: marketSnapshot ? {
+      available: marketSnapshot.available,
+      fetchedAt: marketSnapshot.fetchedAt,
+      source: marketSnapshot.source,
+      productCount: marketSnapshot.products.length,
+      trendCount: marketSnapshot.trends.length,
+      errors: marketSnapshot.errors,
+    } : null,
     status: 'running',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -172,7 +187,7 @@ export async function runPipeline({ divisions, topic, product }) {
     try {
       const output = await generateText({
         system: systemPrompt(),
-        prompt: buildStagePrompt(def, { previous, members: div.members || [], manager, topic: autoTopic, product: autoProduct }),
+        prompt: buildStagePrompt(def, { previous, members: div.members || [], manager, topic: autoTopic, product: autoProduct, marketBrief: marketBriefText }),
       });
       stage.output = output;
       stage.managerDecision = extractManagerDecision(output);

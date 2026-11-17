@@ -69,10 +69,19 @@ function Stat({ label, value, hint }) {
   );
 }
 
-export default function Dashboard({ metrics, activeDivisionCount, activities, tasks, onEnterOffice }) {
+export default function Dashboard({ metrics, activeDivisionCount, activities, tasks, onEnterOffice, isSnapshot, snapshotAt }) {
   const recentActivities = useMemo(() => activities.slice(0, 8), [activities]);
   return (
     <div className="page">
+      {isSnapshot && (
+        <div className="card" style={{ marginBottom: 12, padding: '10px 16px' }}>
+          <span className="pill">Mode snapshot</span>{' '}
+          <span className="muted">
+            Backend tidak terhubung, menampilkan data nyata terakhir yang diambil{' '}
+            {snapshotAt ? new Date(snapshotAt).toLocaleString('id-ID') : '-'}. Data live tersedia saat server berjalan.
+          </span>
+        </div>
+      )}
       <section className="hero card">
         <div className="hero-copy">
           <div className="eyebrow">Affiliate Studio AI Platform</div>
@@ -84,7 +93,7 @@ export default function Dashboard({ metrics, activeDivisionCount, activities, ta
           </p>
           <div className="hero-actions">
             <button className="btn primary" onClick={onEnterOffice}>Masuk ke Kantor 3D</button>
-            <span className="pill live">Sistem aktif & sinkron</span>
+            <span className={`pill ${isSnapshot ? '' : 'live'}`}>{isSnapshot ? 'Data tersimpan' : 'Sistem aktif & sinkron'}</span>
           </div>
         </div>
         <div className="hero-side">
@@ -101,18 +110,23 @@ export default function Dashboard({ metrics, activeDivisionCount, activities, ta
       <section className="grid stats">
         <Stat label="Divisi Operasional" value={metrics.divisions} hint="Struktur inti studio" />
         <Stat label="Pekerja AI" value={metrics.workers} hint="4 spesialis per divisi" />
-        <Stat label="Draft Dihasilkan" value={metrics.drafts || 0} hint="Output agen nyata (Phase A)" />
-        <Stat label="Draft Disetujui" value={metrics.approved || 0} hint="Siap dieksekusi" />
-        <Stat label="Campaign Aktif" value={metrics.campaigns} hint="Lintas 4 divisi" />
-        <Stat label="Konten & Post" value={metrics.posts} hint="Pipeline sosial media" />
-        <Stat label="Leads Dikelola" value={metrics.leads} hint="DM, komentar, inquiry" />
-        <Stat label="Estimasi Komisi" value={`Rp ${metrics.revenue.toLocaleString('id-ID')}`} hint={`Closing: ${metrics.sales} transaksi`} />
+        <Stat label="Alur Berjalan" value={metrics.campaigns || 0} hint="Pipeline aktif/menunggu approval" />
+        <Stat label="Tahap Selesai" value={metrics.stagesDone || 0} hint="Dari seluruh pipeline tersimpan" />
+        <Stat label="Draft Dihasilkan" value={metrics.drafts || 0} hint="Output agen dari backend" />
+        <Stat label="Draft Disetujui" value={metrics.approved || 0} hint="Sudah melewati persetujuan" />
+        <Stat label="Produk Terscan" value={metrics.productsScanned || 0} hint="Data publik Tokopedia" />
+        <Stat label="Tren Terdeteksi" value={metrics.trendsDetected || 0} hint="Google Trends RSS Indonesia" />
       </section>
+      <p className="muted" style={{ marginTop: 10 }}>
+        Data di atas diambil dari penyimpanan backend dan sumber publik. Komisi affiliate belum tersedia tanpa
+        kredensial affiliate, jadi tidak ditampilkan angka estimated. Post sosial, leads, dan transaksi belum terhubung ke API platform.
+      </p>
 
       <section className="grid two">
         <div className="card">
-          <div className="card-head"><h2>Aktivitas Tim Real-time</h2><span className="pill live">Live</span></div>
+          <div className="card-head"><h2>Aktivitas Sistem</h2><span className="pill">Log backend</span></div>
           <div className="activity-list">
+            {recentActivities.length === 0 && <div className="muted">Belum ada aktivitas. Jalankan alur kerja di menu Agen & Draft.</div>}
             {recentActivities.map((a) => (
               <div key={a.id} className="activity-item">
                 <span className="dot" style={{ background: divisions.flatMap(d => d.members).find(m => m.name === a.agent)?.color || '#94a3b8' }} />
@@ -126,8 +140,9 @@ export default function Dashboard({ metrics, activeDivisionCount, activities, ta
         </div>
 
         <div className="card">
-          <div className="card-head"><h2>Progress Campaign</h2><span className="pill">{tasks.length} aktif</span></div>
+          <div className="card-head"><h2>Progress Alur Kerja</h2><span className="pill">{tasks.length} tahap</span></div>
           <div className="task-list">
+            {tasks.length === 0 && <div className="muted">Belum ada pipeline. Jalankan alur kerja otomatis untuk melihat progres nyata per tahap.</div>}
             {tasks.map((t) => (
               <div key={t.id} className="task-row">
                 <div className="task-top">

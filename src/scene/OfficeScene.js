@@ -1,9 +1,37 @@
 import * as THREE from 'three';
-import { products } from '../data/products.js';
 import { createNavigator } from './navigation.js';
 
 export function createOfficeScene(container, callbacks = {}) {
-  const { onTimeUpdate, onStatusUpdate, onMeetingChange, onProductSelect, onActivityUpdate } = callbacks;
+  const { onTimeUpdate, onStatusUpdate, onMeetingChange, onProductSelect, onActivityUpdate, products: realProducts } = callbacks;
+
+  // Monitor kantor menampilkan produk nyata dari snapshot data pasar bila tersedia.
+  // Fallback ke katalog statis HANYA saat data pasar belum termuat.
+  const SCREEN_COLORS = ['#0DEEF3', '#448AFF', '#34D399', '#F472B6', '#FBBF24', '#A78BFA', '#38BDF8', '#FB7185'];
+  const shortLabel = (name) => {
+    const words = String(name || 'PRODUK').split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
+    return words.toUpperCase().slice(0, 14);
+  };
+  const sceneProducts = (Array.isArray(realProducts) && realProducts.length)
+    ? realProducts.map((p, i) => ({
+        name: p.name,
+        price: p.priceText || (p.price ? `Rp ${Number(p.price).toLocaleString('id-ID')}` : ''),
+        sold: p.soldText || '',
+        cta: 'Lihat di Tokopedia',
+        affiliateUrl: p.url,
+        screen: {
+          title: shortLabel(p.name),
+          subtitle: p.shop || '',
+          color: SCREEN_COLORS[i % SCREEN_COLORS.length],
+          badge: p.rating ? `★${p.rating}` : 'REAL',
+        },
+      }))
+    : [{
+        name: 'Menunggu data pasar',
+        price: '',
+        sold: '',
+        cta: 'Lihat produk',
+        screen: { title: 'PRODUK', subtitle: 'Data belum dimuat', color: '#0DEEF3', badge: 'DATA' },
+      }];
 
   class RNG {
     constructor(s = 42) { this.s = s; }
@@ -301,6 +329,14 @@ export function createOfficeScene(container, callbacks = {}) {
       c.strokeRect(4, 4, w - 8, h - 8);
       c.globalAlpha = 1;
     }
+    // Tampilkan informasi produk nyata (nama singkat, harga, jumlah terjual) bila tersedia.
+    c.fillStyle = '#e6f1ff';
+    c.font = 'bold 11px sans-serif';
+    c.fillText(String(product?.screen?.title || 'PRODUK').slice(0, 20), 14, 44);
+    c.fillStyle = '#9fb3c8';
+    c.font = '10px sans-serif';
+    if (product?.price) c.fillText(String(product.price).slice(0, 22), 14, 62);
+    if (product?.sold) c.fillText(String(product.sold).slice(0, 22), 14, 78);
     s.tex.needsUpdate = true;
   }
 
@@ -346,7 +382,7 @@ export function createOfficeScene(container, callbacks = {}) {
       monitorOffsets.forEach((ox, mi) => {
         const globalIdx = ti * 8 + idx * 2 + mi;
         const fallback = { screen: { color: agent.hex || '#0DEEF3' } };
-        const product = products[globalIdx] || products[(idx * 2 + mi) % products.length] || fallback;
+        const product = sceneProducts[globalIdx] || sceneProducts[(idx * 2 + mi) % sceneProducts.length] || fallback;
         const mx = ax + ox;
         const base = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.1), ML(0xaab8c5));
         base.position.set(mx, 0.79, az - 0.22); office.add(base);

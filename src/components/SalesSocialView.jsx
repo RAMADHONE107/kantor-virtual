@@ -4,87 +4,81 @@ function StatusBadge({ status, statusKey }) {
   return <span className={`badge status-${statusKey}`}>{status}</span>;
 }
 
-export default function SalesSocialView({ posts, leads, sales }) {
+export default function SalesSocialView({ market }) {
+  const products = market?.products || [];
+  const trends = market?.trends || [];
+  const fetchedAt = market?.fetchedAt ? new Date(market.fetchedAt).toLocaleString('id-ID') : '-';
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="eyebrow">Operasional Harian</div>
-          <h1>Sosial Media, Leads, dan Penjualan</h1>
-          <p className="muted">Pemantauan konten, interaksi audiens, dan proses closing yang dikelola oleh tim lintas divisi secara terintegrasi.</p>
+          <div className="eyebrow">Data Pasar Nyata</div>
+          <h1>Sosmed & Penjualan</h1>
+          <p className="muted">
+            Produk dan tren di bawah ini diambil dari sumber publik tanpa login. Diambil: {fetchedAt}.
+            Komisi afiliasi tidak ditampilkan karena belum ada kredensial affiliate resmi.
+          </p>
         </div>
       </div>
 
-      <div className="grid two">
-        <section className="card">
-          <div className="card-head"><h2>Pipeline Konten & Sosial Media</h2><span className="pill">{posts.length} item</span></div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Konten</th><th>Channel</th><th>PIC</th><th>Divisi</th><th>Status</th><th>Performa</th></tr>
-              </thead>
-              <tbody>
-                {posts.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.title}</td>
-                    <td>{p.channel}</td>
-                    <td>{p.owner}</td>
-                    <td>{p.division}</td>
-                    <td><StatusBadge status={p.status} statusKey={p.statusKey} /></td>
-                    <td>{p.metric}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-head"><h2>Leads & Interaksi</h2><span className="pill">{leads.length} leads</span></div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Lead</th><th>Sumber</th><th>Minat</th><th>PIC</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {leads.map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.name}</td>
-                    <td>{l.source}</td>
-                    <td>{l.interest}</td>
-                    <td>{l.owner}</td>
-                    <td><StatusBadge status={l.status} statusKey={l.statusKey} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
       <section className="card">
-        <div className="card-head"><h2>Penjualan & Komisi Affiliate</h2><span className="pill">{sales.length} transaksi</span></div>
+        <div className="card-head">
+          <h2>Produk Kecantikan & Perawatan Kulit (Tokopedia)</h2>
+          <span className="pill">{products.length} produk</span>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Order</th><th>Produk</th><th>Channel</th><th>PIC</th><th>Divisi</th><th>Status</th><th>Komisi</th></tr>
+              <tr><th>Produk</th><th>Harga</th><th>Rating</th><th>Terjual</th><th>Toko</th><th>Komisi</th></tr>
             </thead>
             <tbody>
-              {sales.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.order}</td>
-                  <td>{s.product}</td>
-                  <td>{s.channel}</td>
-                  <td>{s.owner}</td>
-                  <td>{s.division}</td>
-                  <td><StatusBadge status={s.status} statusKey={s.statusKey} /></td>
-                  <td>Rp {s.commission.toLocaleString('id-ID')}</td>
+              {products.length === 0 && (
+                <tr><td colSpan="6" className="muted">Data produk belum tersedia. Cek koneksi backend lalu muat ulang.</td></tr>
+              )}
+              {products.map((p) => (
+                <tr key={p.url || p.name}>
+                  <td>
+                    <a href={p.url} target="_blank" rel="noreferrer">{p.name}</a>
+                  </td>
+                  <td>{p.priceText || `Rp ${Number(p.price || 0).toLocaleString('id-ID')}`}</td>
+                  <td>{p.rating ?? '-'}</td>
+                  <td>{p.soldText || (p.sold != null ? `${p.sold} terjual` : '-')}</td>
+                  <td>{p.shop}{p.city ? ` · ${p.city}` : ''}</td>
+                  <td><StatusBadge status="Belum tersedia" statusKey="queue" /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      <div className="grid two" style={{ marginTop: 16 }}>
+        <section className="card">
+          <div className="card-head"><h2>Tren Pencarian Indonesia</h2><span className="pill">{trends.length} tren</span></div>
+          <div className="activity-list">
+            {trends.length === 0 && <div className="muted">Tren belum tersedia.</div>}
+            {trends.map((t, i) => (
+              <div key={`${t.title}-${i}`} className="activity-item">
+                <span className="dot" style={{ background: t.beautyRelated ? '#34d399' : '#64748b' }} />
+                <div>
+                  <div className="activity-text"><strong>{t.title}</strong></div>
+                  <div className="activity-time">{t.traffic || 'trafik n/a'} · {t.beautyRelated ? 'terkait kecantikan' : 'tren umum'} · {t.published || '-'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-head"><h2>Integrasi Platform</h2><span className="pill">Belum terhubung</span></div>
+          <div className="activity-list">
+            <div className="activity-item"><span className="dot" style={{ background: '#64748b' }} /><div><div className="activity-text"><strong>Post & jadwal konten</strong> — belum ada API TikTok/Instagram yang terhubung.</div><div className="activity-time">Tidak ada data simulasi</div></div></div>
+            <div className="activity-item"><span className="dot" style={{ background: '#64748b' }} /><div><div className="activity-text"><strong>Leads & DM</strong> — belum ada integrasi pesan marketplace/sosial.</div><div className="activity-time">Tidak ada data simulasi</div></div></div>
+            <div className="activity-item"><span className="dot" style={{ background: '#64748b' }} /><div><div className="activity-text"><strong>Transaksi & komisi</strong> — butuh kredensial affiliate (Shopee/TikTok/network).</div><div className="activity-time">Tidak ada angka dibuat-buat</div></div></div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
