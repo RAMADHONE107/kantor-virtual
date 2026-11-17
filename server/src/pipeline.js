@@ -89,9 +89,19 @@ Instruksi kerja:
 
 function extractManagerDecision(text) {
   if (!text) return '';
-  const m = text.match(/(?:^|\n)\s*(?:5\)|#+)?\s*Keputusan Manager[\s\S]*?(?=\n\s*(?:6\)|#+)\s*Serah Terima|\n\s*6\)|$)/i);
-  if (m) return m[0].replace(/^\s*(?:5\)|#+)?\s*Keputusan Manager\s*:?\s*/i, '').trim().slice(0, 800);
-  return text.slice(0, 400);
+  const lines = String(text).split(/\r?\n/);
+  const isHeading = (l, word) => new RegExp(`^\\s*(?:\\d+\\)|#+\\s*)?\\s*\\**\\s*${word}\\b`, 'i').test(l);
+  const start = lines.findIndex((l) => isHeading(l, 'Keputusan Manager'));
+  if (start < 0) return text.slice(0, 400);
+  const picked = [];
+  for (let i = start; i < lines.length; i++) {
+    if (i > start && isHeading(lines[i], 'Serah Terima')) break;
+    picked.push(lines[i]);
+  }
+  const clean = picked.join('\n')
+    .replace(/^\s*(?:\d+\)|#+\s*)?\s*\**\s*Keputusan Manager\s*\**\s*:?\s*/i, '')
+    .trim();
+  return clean.slice(0, 800) || text.slice(0, 400);
 }
 
 function buildFinalPackage(pipeline) {

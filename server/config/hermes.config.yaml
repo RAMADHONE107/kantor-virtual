@@ -1,0 +1,19 @@
+# Konfigurasi Hermes Agent untuk otak agen affiliate.
+# Default: endpoint OpenAI-compatible gratis (Pollinations), tanpa API key.
+model:
+  provider: custom
+  default: openai
+  base_url: https://text.pollinations.ai/openai
+  api_key: local-free
+  timeout: 240
+
+custom_providers:
+  - name: Pollinations Free
+    key: pollinations
+    api: https://text.pollinations.ai/openai
+    api_key: local-free
+    api_mode: chat_completions
+
+# Setelah login Nous Portal / OpenRouter, ganti blok `model` di sini ke provider
+# tersebut ( atau jalankan `hermes model` di HERMES_APP_HOME ) dan sesuaikan
+# HERMES_MODEL di server/.env.
