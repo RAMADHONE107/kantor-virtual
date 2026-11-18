@@ -1,163 +1,147 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { divisions } from '../data/team';
 
-const slides = [
-  {
-    kicker: 'Real AI Workflow',
-    title: 'Agen AI yang Beneran Bekerja',
-    text: 'Bukan sekadar visual — setiap divisi menghasilkan draft riset, skrip, brief, dan rencana eksekusi nyata yang siap kamu tinjau dan setujui.',
-    bg: 'linear-gradient(135deg, #1d4ed8 0%, #4f46e5 45%, #0891b2 100%)',
-  },
-  {
-    kicker: 'Operasional Terintegrasi',
-    title: '4 Divisi, 16 Pekerja, Satu Alur Mulus',
-    text: 'Dari riset produk, produksi konten, desain, hingga distribusi sosial media dan penjualan — semua bergerak sinkron dalam satu studio.',
-    bg: 'linear-gradient(135deg, #0f766e 0%, #2563eb 50%, #7c3aed 100%)',
-  },
-  {
-    kicker: 'Fokus Growth',
-    title: 'Siap Scale di TikTok & Shopee',
-    text: 'Strategi, konten, dan rencana follow-up diarahkan ke channel prioritas agar trafik, leads, dan konversi affiliate tumbuh lebih cepat.',
-    bg: 'linear-gradient(135deg, #c2410c 0%, #db2777 50%, #7c3aed 100%)',
-  },
-  {
-    kicker: 'Immersive Experience',
-    title: 'Pantau Tim di Kantor 3D Interaktif',
-    text: 'Lihat 16 pekerja beraktivitas di kantor virtual, sambil memantau performa campaign, draft, dan pipeline secara real-time di dashboard.',
-    bg: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0e7490 100%)',
-  },
-];
-
-function HeroSlider() {
-  const [index, setIndex] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), 5000);
-    return () => clearInterval(t);
-  }, []);
+function KpiCard({ label, value, hint, tone = 'blue' }) {
   return (
-    <div className="slider">
-      <div className="slider-track" style={{ transform: `translateX(-${index * 100}%)` }}>
-        {slides.map((s, i) => (
-          <div className="slide" key={i}>
-            <div className="slide-bg" style={{ background: s.bg }} />
-            <div className="slide-content">
-              <div className="slide-kicker">{s.kicker}</div>
-              <h3>{s.title}</h3>
-              <p>{s.text}</p>
+    <div className={`card kpi kpi-${tone}`}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      <div className="kpi-hint">{hint}</div>
+      <span className="kpi-accent" />
+    </div>
+  );
+}
+
+function TopProducts({ products }) {
+  const top = useMemo(
+    () => [...(products || [])].sort((a, b) => (Number(b.sold) || 0) - (Number(a.sold) || 0)).slice(0, 5),
+    [products],
+  );
+  const max = Math.max(...top.map((p) => Number(p.sold) || 0), 1);
+
+  return (
+    <section className="card dash-panel">
+      <div className="card-head">
+        <h2>Produk Terlaris</h2>
+        <span className="pill">Tokopedia · {top.length} produk</span>
+      </div>
+      {top.length === 0 && <div className="muted">Data produk belum tersedia.</div>}
+      <div className="rank-list">
+        {top.map((p, i) => (
+          <div className="rank-row" key={p.url || p.name}>
+            <span className="rank-no">{String(i + 1).padStart(2, '0')}</span>
+            <div className="rank-main">
+              <div className="rank-top">
+                <a className="rank-name" href={p.url} target="_blank" rel="noreferrer" title={p.name}>
+                  {p.name}
+                </a>
+                <span className="rank-value">{p.soldText || (p.sold != null ? `${p.sold} terjual` : '-')}</span>
+              </div>
+              <div className="bar sm"><div className="bar-fill" style={{ width: `${((Number(p.sold) || 0) / max) * 100}%` }} /></div>
+              <div className="rank-meta">{p.priceText || '-'} · ★ {p.rating ?? '-'} · {p.shop}</div>
             </div>
           </div>
         ))}
       </div>
-      <div className="slider-dots">
-        {slides.map((_, i) => (
-          <button key={i} className={`slider-dot ${i === index ? 'active' : ''}`} onClick={() => setIndex(i)} aria-label={`Slide ${i + 1}`}>
-            <span />
-          </button>
+    </section>
+  );
+}
+
+function ActivityPanel({ activities }) {
+  const allPeople = divisions.flatMap((d) => d.members);
+  return (
+    <section className="card dash-panel">
+      <div className="card-head">
+        <h2>Aktivitas Sistem</h2>
+        <span className="pill">{activities.length} log terbaru</span>
+      </div>
+      <div className="activity-list">
+        {activities.length === 0 && <div className="muted">Belum ada aktivitas. Jalankan alur kerja di menu Agen & Draft.</div>}
+        {activities.map((a) => (
+          <div key={a.id} className="activity-item">
+            <span className="dot" style={{ background: allPeople.find((m) => m.name === a.agent)?.color || '#94a3b8' }} />
+            <div>
+              <div className="activity-text"><strong>{a.agent}</strong> — {a.text}</div>
+              <div className="activity-time">{a.time}</div>
+            </div>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
-function Stat({ label, value, hint }) {
+function WorkflowPanel({ tasks }) {
   return (
-    <div className="card stat">
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {hint && <div className="stat-hint">{hint}</div>}
-    </div>
+    <section className="card dash-panel">
+      <div className="card-head">
+        <h2>Progress Alur Kerja</h2>
+        <span className="pill">Pipeline terbaru · {tasks.length} tahap</span>
+      </div>
+      <div className="stage-grid">
+        {tasks.length === 0 && <div className="muted">Belum ada pipeline. Jalankan alur kerja otomatis di menu Agen & Draft.</div>}
+        {tasks.map((t, i) => (
+          <div className="stage-card" key={t.id}>
+            <div className="stage-head">
+              <span className="stage-index">{String(i + 1).padStart(2, '0')}</span>
+              <span className={`stage-status ${t.progress === 100 ? 'done' : ''}`}>{t.stage}</span>
+            </div>
+            <div className="stage-title">{t.title.replace(/^Tahap \d+:\s*/, '')}</div>
+            <div className="stage-sub">{t.owner} · {t.division}</div>
+            <div className="bar sm"><div className="bar-fill" style={{ width: `${t.progress}%`, background: `linear-gradient(90deg, ${t.divisionColor}, #6366f1)` }} /></div>
+            <div className="stage-pct">{t.progress}%</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
-export default function Dashboard({ metrics, activeDivisionCount, activities, tasks, onEnterOffice, isSnapshot, snapshotAt }) {
-  const recentActivities = useMemo(() => activities.slice(0, 8), [activities]);
+export default function Dashboard({ metrics, activities, tasks, market, onEnterOffice, isSnapshot, snapshotAt }) {
+  const updatedAt = market?.fetchedAt ? new Date(market.fetchedAt).toLocaleString('id-ID') : '-';
+  const totalDone = metrics.stagesDone || 0;
+
   return (
-    <div className="page">
-      {isSnapshot && (
-        <div className="card" style={{ marginBottom: 12, padding: '10px 16px' }}>
-          <span className="pill">Mode snapshot</span>{' '}
-          <span className="muted">
-            Backend tidak terhubung, menampilkan data nyata terakhir yang diambil{' '}
-            {snapshotAt ? new Date(snapshotAt).toLocaleString('id-ID') : '-'}. Data live tersedia saat server berjalan.
-          </span>
+    <div className="page dash-page">
+      <section className="dash-header">
+        <div>
+          <div className="eyebrow">Ringkasan Operasional</div>
+          <h1>Dashboard Affiliate</h1>
+          <p className="muted">Pantau pipeline, produk, dan sinyal pasar dari satu tempat.</p>
         </div>
-      )}
-      <section className="hero card">
-        <div className="hero-copy">
-          <div className="eyebrow">Affiliate Studio AI Platform</div>
-          <h1>Bangun Mesin Affiliate yang Elegan, Cepat, dan Produktif</h1>
-          <p>
-            Kelola riset, produksi konten, desain, distribusi sosial media, hingga penanganan leads dan penjualan
-            dalam satu workspace modern. Aktifkan agen AI untuk menghasilkan draft nyata, pantau progres lintas divisi,
-            dan lihat tim bekerja langsung di kantor 3D.
-          </p>
-          <div className="hero-actions">
-            <button className="btn primary" onClick={onEnterOffice}>Masuk ke Kantor 3D</button>
-            <span className={`pill ${isSnapshot ? '' : 'live'}`}>{isSnapshot ? 'Data tersimpan' : 'Sistem aktif & sinkron'}</span>
+        <div className="dash-actions">
+          <div className="source-line">
+            <span className={`source-dot ${isSnapshot ? 'snapshot' : ''}`} />
+            <span>{isSnapshot ? 'Mode snapshot' : 'Data live'}</span>
+            <span className="source-sep">·</span>
+            <span>Diperbarui {updatedAt}</span>
           </div>
-        </div>
-        <div className="hero-side">
-          <HeroSlider />
-          <div className="hero-stats">
-            <div className="hero-stat"><div className="hero-stat-label">Divisi Aktif</div><div className="hero-stat-value">{activeDivisionCount} / {metrics.divisions}</div></div>
-            <div className="hero-stat"><div className="hero-stat-label">Pekerja AI</div><div className="hero-stat-value">{metrics.workers}</div></div>
-            <div className="hero-stat"><div className="hero-stat-label">Draft AI</div><div className="hero-stat-value">{metrics.drafts || 0}</div></div>
-            <div className="hero-stat"><div className="hero-stat-label">Disetujui</div><div className="hero-stat-value">{metrics.approved || 0}</div></div>
-          </div>
+          <button className="btn primary" onClick={onEnterOffice}>Buka Kantor 3D</button>
         </div>
       </section>
 
-      <section className="grid stats">
-        <Stat label="Divisi Operasional" value={metrics.divisions} hint="Struktur inti studio" />
-        <Stat label="Pekerja AI" value={metrics.workers} hint="4 spesialis per divisi" />
-        <Stat label="Alur Berjalan" value={metrics.campaigns || 0} hint="Pipeline aktif/menunggu approval" />
-        <Stat label="Tahap Selesai" value={metrics.stagesDone || 0} hint="Dari seluruh pipeline tersimpan" />
-        <Stat label="Draft Dihasilkan" value={metrics.drafts || 0} hint="Output agen dari backend" />
-        <Stat label="Draft Disetujui" value={metrics.approved || 0} hint="Sudah melewati persetujuan" />
-        <Stat label="Produk Terscan" value={metrics.productsScanned || 0} hint="Data publik Tokopedia" />
-        <Stat label="Tren Terdeteksi" value={metrics.trendsDetected || 0} hint="Google Trends RSS Indonesia" />
+      <section className="kpi-grid">
+        <KpiCard label="Pipeline Aktif" value={metrics.campaigns || 0} hint="Berjalan / menunggu approval" tone="blue" />
+        <KpiCard label="Tahap Selesai" value={totalDone} hint={`Dari ${metrics.pipelines || 0} pipeline tersimpan`} tone="green" />
+        <KpiCard label="Produk Terscan" value={metrics.productsScanned || 0} hint="Harga & terjual dari Tokopedia" tone="cyan" />
+        <KpiCard label="Tren Terdeteksi" value={metrics.trendsDetected || 0} hint="Google Trends Indonesia" tone="violet" />
       </section>
-      <p className="muted" style={{ marginTop: 10 }}>
-        Data di atas diambil dari penyimpanan backend dan sumber publik. Komisi affiliate belum tersedia tanpa
-        kredensial affiliate, jadi tidak ditampilkan angka estimated. Post sosial, leads, dan transaksi belum terhubung ke API platform.
-      </p>
 
-      <section className="grid two">
-        <div className="card">
-          <div className="card-head"><h2>Aktivitas Sistem</h2><span className="pill">Log backend</span></div>
-          <div className="activity-list">
-            {recentActivities.length === 0 && <div className="muted">Belum ada aktivitas. Jalankan alur kerja di menu Agen & Draft.</div>}
-            {recentActivities.map((a) => (
-              <div key={a.id} className="activity-item">
-                <span className="dot" style={{ background: divisions.flatMap(d => d.members).find(m => m.name === a.agent)?.color || '#94a3b8' }} />
-                <div>
-                  <div className="activity-text"><strong>{a.agent}</strong> — {a.text}</div>
-                  <div className="activity-time">{a.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head"><h2>Progress Alur Kerja</h2><span className="pill">{tasks.length} tahap</span></div>
-          <div className="task-list">
-            {tasks.length === 0 && <div className="muted">Belum ada pipeline. Jalankan alur kerja otomatis untuk melihat progres nyata per tahap.</div>}
-            {tasks.map((t) => (
-              <div key={t.id} className="task-row">
-                <div className="task-top">
-                  <div>
-                    <div className="task-title">{t.title}</div>
-                    <div className="task-sub">{t.owner} · {t.division} · {t.stage}</div>
-                  </div>
-                  <div className="task-pct">{t.progress}%</div>
-                </div>
-                <div className="bar"><div className="bar-fill" style={{ width: `${t.progress}%`, background: `linear-gradient(90deg, ${t.divisionColor}, #6366f1)` }} /></div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <section className="grid two dash-panels">
+        <TopProducts products={market?.products} />
+        <ActivityPanel activities={activities} />
       </section>
+
+      <WorkflowPanel tasks={tasks} />
+
+      <footer className="data-note">
+        <span className="pill">Sumber data</span>
+        <span>
+          Metrik & aktivitas dari backend studio. Produk dari Tokopedia publik, tren dari Google Trends RSS.
+          {' '}Komisi affiliate tidak ditampilkan karena belum ada kredensial affiliate resmi — tidak ada angka yang dikarang.
+          {isSnapshot && snapshotAt ? ` Menampilkan snapshot nyata terakhir (${new Date(snapshotAt).toLocaleString('id-ID')}).` : ''}
+        </span>
+      </footer>
     </div>
   );
 }
